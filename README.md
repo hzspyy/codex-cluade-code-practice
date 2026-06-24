@@ -173,6 +173,8 @@ MIT. See `LICENSE`.
 
 ## Releasing
 
+See `CHANGELOG.md` for release notes.
+
 Release artifacts are built from version tags:
 
 ```bash

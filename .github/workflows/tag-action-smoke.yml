@@ -17,7 +17,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Run released action tag
-        uses: hzspyy/codex-cluade-code-practice@v0.2.0
+        uses: hzspyy/codex-cluade-code-practice@v0.3.0
         with:
           format: sarif
           output: released-action.sarif
