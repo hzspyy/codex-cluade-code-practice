@@ -27,6 +27,8 @@ jobs:
           format: sarif
           output: agent-workbench.sarif
           baseline: agent-workbench-baseline.json
+          changed-lines: "true"
+          base-ref: origin/main
       - uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
@@ -57,6 +59,10 @@ Then pass that file through the action. Existing matching findings remain in
 JSON, text, and Markdown reports, while SARIF only contains new warnings or
 errors that need review.
 
+As an alternative for pull request gates, set `changed-lines: "true"`. The
+action still audits the full repository, but only findings that touch the diff
+from `base-ref` fail the job or appear in SARIF annotations.
+
 Inputs:
 
 | Input | Default | Description |
@@ -67,3 +73,5 @@ Inputs:
 | `strict` | `false` | Fail on warnings as well as errors. |
 | `config` | empty | Optional path to `agent-workbench.toml`. |
 | `baseline` | empty | Optional path to a committed baseline JSON file. |
+| `changed-lines` | `false` | Only fail findings that touch lines changed from `base-ref`. |
+| `base-ref` | `origin/main` | Git ref used when `changed-lines` is true. |

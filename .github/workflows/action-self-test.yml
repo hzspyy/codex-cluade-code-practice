@@ -32,6 +32,8 @@ jobs:
           format: sarif
           output: agent-workbench.sarif
           baseline: empty-baseline.json
+          changed-lines: "true"
+          base-ref: HEAD
       - name: Validate SARIF JSON
         run: python -m json.tool agent-workbench.sarif >/dev/null
       - name: Upload SARIF artifact
