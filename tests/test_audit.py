@@ -265,3 +265,105 @@ jobs:
 
     assert "workflow.download_execute" in warnings
     assert "workflow.artifact.boundary" in warnings
+
+
+def test_privileged_workflow_without_environment_is_reported(tmp_path: Path) -> None:
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    init_repository(tmp_path)
+    workflow = tmp_path / ".github" / "workflows" / "release.yml"
+    workflow.parent.mkdir(parents=True, exist_ok=True)
+    workflow.write_text(
+        """
+name: Release
+on:
+  push:
+    tags: ["v*.*.*"]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
+""",
+        encoding="utf-8",
+    )
+
+    audit = audit_repository(tmp_path, load_config(tmp_path))
+    warnings = {finding.check_id for finding in audit.findings if finding.severity == Severity.WARNING}
+
+    assert "workflow.privileged.environment" in warnings
+
+
+def test_privileged_workflow_with_environment_is_not_reported(tmp_path: Path) -> None:
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    init_repository(tmp_path)
+    workflow = tmp_path / ".github" / "workflows" / "release.yml"
+    workflow.parent.mkdir(parents=True, exist_ok=True)
+    workflow.write_text(
+        """
+name: Release
+on:
+  push:
+    tags: ["v*.*.*"]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
+""",
+        encoding="utf-8",
+    )
+
+    audit = audit_repository(tmp_path, load_config(tmp_path))
+    warnings = {finding.check_id for finding in audit.findings if finding.severity == Severity.WARNING}
+
+    assert "workflow.privileged.environment" not in warnings
+
+
+def test_privileged_environment_allowlist_is_honored(tmp_path: Path) -> None:
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    init_repository(tmp_path)
+    workflow = tmp_path / ".github" / "workflows" / "legacy-release.yml"
+    workflow.parent.mkdir(parents=True, exist_ok=True)
+    workflow.write_text(
+        """
+name: Legacy release
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh release create v0.0.0
+""",
+        encoding="utf-8",
+    )
+    (tmp_path / "agent-workbench.toml").write_text(
+        """
+[audit]
+required_files = ["AGENTS.md", "CLAUDE.md", "LICENSE", ".github/pull_request_template.md", ".github/workflows/validate.yml"]
+json_files = [".codex/hooks.json", ".claude/settings.json"]
+executable_files = ["scripts/validate.sh", ".githooks/pre-commit"]
+workflow_files = [".github/workflows/*.yml"]
+hook_json_files = [".codex/hooks.json", ".claude/settings.json"]
+ignored_dirs = [".git", ".venv", "__pycache__"]
+allowed_broad_permission_workflows = [".github/workflows/legacy-release.yml"]
+allowed_ungated_privileged_workflows = [".github/workflows/legacy-release.yml"]
+
+[guidance]
+"AGENTS.md" = ["Review guidelines", "Commands"]
+"CLAUDE.md" = ["validate"]
+""",
+        encoding="utf-8",
+    )
+
+    audit = audit_repository(tmp_path, load_config(tmp_path))
+    warnings = {finding.check_id for finding in audit.findings if finding.severity == Severity.WARNING}
+
+    assert "workflow.privileged.environment" not in warnings

@@ -19,6 +19,7 @@ class AuditConfig:
     allowed_unpinned_actions: tuple[str, ...]
     allowed_write_permission_workflows: tuple[str, ...]
     allowed_broad_permission_workflows: tuple[str, ...]
+    allowed_ungated_privileged_workflows: tuple[str, ...]
 
 
 DEFAULT_REQUIRED_FILES = (
@@ -73,6 +74,7 @@ DEFAULT_HOOK_JSON_FILES = (
 DEFAULT_ALLOWED_UNPINNED_ACTIONS: tuple[str, ...] = ()
 DEFAULT_ALLOWED_WRITE_PERMISSION_WORKFLOWS: tuple[str, ...] = ()
 DEFAULT_ALLOWED_BROAD_PERMISSION_WORKFLOWS: tuple[str, ...] = ()
+DEFAULT_ALLOWED_UNGATED_PRIVILEGED_WORKFLOWS: tuple[str, ...] = ()
 
 
 def default_config() -> AuditConfig:
@@ -87,6 +89,7 @@ def default_config() -> AuditConfig:
         allowed_unpinned_actions=DEFAULT_ALLOWED_UNPINNED_ACTIONS,
         allowed_write_permission_workflows=DEFAULT_ALLOWED_WRITE_PERMISSION_WORKFLOWS,
         allowed_broad_permission_workflows=DEFAULT_ALLOWED_BROAD_PERMISSION_WORKFLOWS,
+        allowed_ungated_privileged_workflows=DEFAULT_ALLOWED_UNGATED_PRIVILEGED_WORKFLOWS,
     )
 
 
@@ -118,6 +121,10 @@ def load_config(root: Path, config_path: Path | None = None) -> AuditConfig:
         audit.get("allowed_broad_permission_workflows"),
         base.allowed_broad_permission_workflows,
     )
+    allowed_ungated_privileged_workflows = _string_tuple(
+        audit.get("allowed_ungated_privileged_workflows"),
+        base.allowed_ungated_privileged_workflows,
+    )
     guidance_terms = _guidance_terms(guidance, base.guidance_terms)
 
     return AuditConfig(
@@ -131,6 +138,7 @@ def load_config(root: Path, config_path: Path | None = None) -> AuditConfig:
         allowed_unpinned_actions=allowed_unpinned_actions,
         allowed_write_permission_workflows=allowed_write_permission_workflows,
         allowed_broad_permission_workflows=allowed_broad_permission_workflows,
+        allowed_ungated_privileged_workflows=allowed_ungated_privileged_workflows,
     )
 
 

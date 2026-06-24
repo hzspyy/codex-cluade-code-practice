@@ -75,8 +75,9 @@ gates without requiring a full historical cleanup in the same change.
   GitHub token permissions, write permissions on pull request workflows,
   `pull_request_target`, credential-persisting checkout steps, unpinned
   third-party actions, download-and-execute shell chains, artifact trust
-  boundaries, and risky lifecycle hook commands. Supports `text`, `json`,
-  `markdown`, and `sarif` output. Use `--write-baseline` to record current
+  boundaries, privileged workflows without environment gates, and risky
+  lifecycle hook commands. Supports `text`, `json`, `markdown`, and `sarif`
+  output. Use `--write-baseline` to record current
   warnings and errors, then `--baseline` to keep those accepted findings from
   failing future runs. Use `--changed-lines --base-ref origin/main` to suppress
   findings that do not touch the current branch diff.
@@ -99,6 +100,7 @@ workflow_files = [".github/workflows/*.yml", "action.yml"]
 hook_json_files = [".codex/hooks.json", ".claude/settings.json"]
 allowed_unpinned_actions = []
 allowed_broad_permission_workflows = []
+allowed_ungated_privileged_workflows = []
 
 [guidance]
 "AGENTS.md" = ["Review guidelines", "Commands"]
