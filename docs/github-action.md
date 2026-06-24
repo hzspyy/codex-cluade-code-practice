@@ -29,6 +29,7 @@ jobs:
           baseline: agent-workbench-baseline.json
           changed-lines: "true"
           base-ref: origin/main
+          summary-output: agent-workbench-summary.md
       - uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
@@ -63,6 +64,10 @@ As an alternative for pull request gates, set `changed-lines: "true"`. The
 action still audits the full repository, but only findings that touch the diff
 from `base-ref` fail the job or appear in SARIF annotations.
 
+Set `summary-output` when you want a compact Markdown or JSON artifact for PR
+comments, dashboards, or agent handoffs. The action writes the full audit report
+first, then derives the summary from the same finding set.
+
 Inputs:
 
 | Input | Default | Description |
@@ -75,3 +80,5 @@ Inputs:
 | `baseline` | empty | Optional path to a committed baseline JSON file. |
 | `changed-lines` | `false` | Only fail findings that touch lines changed from `base-ref`. |
 | `base-ref` | `origin/main` | Git ref used when `changed-lines` is true. |
+| `summary-output` | empty | Optional path for a compact audit summary. |
+| `summary-format` | `markdown` | One of `markdown` or `json`. |
