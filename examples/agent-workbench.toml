@@ -14,6 +14,7 @@ ignored_dirs = [".git", ".venv", "__pycache__", "node_modules", "dist", "build"]
 allowed_unpinned_actions = []
 allowed_broad_permission_workflows = []
 allowed_write_permission_workflows = []
+allowed_ungated_privileged_workflows = []
 
 [guidance]
 "AGENTS.md" = ["Review guidelines", "Commands", "Pull request checklist"]

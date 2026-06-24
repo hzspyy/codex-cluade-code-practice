@@ -60,6 +60,8 @@ Agent Workbench now checks for several automation risks:
 - shell steps that download and immediately execute code
 - workflows that both upload and download artifacts, which can blur artifact
   trust boundaries
+- privileged workflows that publish releases, request write permissions, or use
+  `pull_request_target` without a GitHub Environment gate
 - Codex or Claude lifecycle hook commands containing common network or
   destructive shell patterns
 
@@ -70,10 +72,15 @@ Some workflows legitimately need write access. Configure those exceptions in
 [audit]
 allowed_broad_permission_workflows = [".github/workflows/release.yml"]
 allowed_unpinned_actions = ["owner/action-name"]
+allowed_ungated_privileged_workflows = []
 ```
 
 Prefer fixing the workflow over allowlisting. When allowlisting is necessary,
 keep the entry narrow and explain it in the pull request.
+
+For release or deployment workflows, prefer adding `environment: release` or a
+similarly named environment to the privileged job, then configure protection
+rules such as required reviewers in GitHub repository settings.
 
 ## Codex
 

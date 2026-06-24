@@ -44,6 +44,7 @@ allowed_broad_permission_workflows = [
   ".github/workflows/release.yml"
 ]
 allowed_write_permission_workflows = []
+allowed_ungated_privileged_workflows = []
 
 [guidance]
 "AGENTS.md" = ["Review guidelines", "Commands"]

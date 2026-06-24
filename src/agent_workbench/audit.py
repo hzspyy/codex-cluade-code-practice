@@ -60,6 +60,7 @@ def audit_repository(root: Path, config: AuditConfig | None = None) -> AuditResu
             config.allowed_unpinned_actions,
             config.allowed_write_permission_workflows,
             config.allowed_broad_permission_workflows,
+            config.allowed_ungated_privileged_workflows,
         )
     )
     findings.extend(_check_hook_risks(root, config.hook_json_files))
@@ -282,6 +283,7 @@ def _check_workflow_risks(
     allowed_unpinned_actions: tuple[str, ...],
     allowed_write_permission_workflows: tuple[str, ...],
     allowed_broad_permission_workflows: tuple[str, ...],
+    allowed_ungated_privileged_workflows: tuple[str, ...],
 ) -> list[Finding]:
     findings: list[Finding] = []
     workflow_files = _expand_patterns(root, workflow_patterns)
@@ -302,6 +304,7 @@ def _check_workflow_risks(
     checkout_credentials = []
     download_exec = []
     artifact_boundary = []
+    ungated_privileged = []
     for path in workflow_files:
         rel = path.relative_to(root).as_posix()
         try:
@@ -338,6 +341,12 @@ def _check_workflow_risks(
             checkout_credentials.append(LineMatch(rel, match.line_number, match.line))
         if "actions/upload-artifact" in action_refs and "actions/download-artifact" in action_refs:
             artifact_boundary.extend(_artifact_action_matches(rel, lines))
+        if (
+            rel not in allowed_ungated_privileged_workflows
+            and _is_privileged_workflow(lines, action_refs)
+            and not _has_environment_gate(lines)
+        ):
+            ungated_privileged.extend(_privileged_workflow_matches(rel, lines, action_refs))
 
     if unpinned:
         findings.append(
@@ -486,6 +495,27 @@ def _check_workflow_risks(
             )
         )
 
+    if ungated_privileged:
+        findings.append(
+            Finding(
+                check_id="workflow.privileged.environment",
+                severity=Severity.WARNING,
+                title="Privileged workflow has no environment gate",
+                detail=_format_line_matches(ungated_privileged),
+                remediation="Add a GitHub Environment to privileged jobs and configure required reviewers or deployment protections.",
+                locations=_locations_from_matches(ungated_privileged),
+            )
+        )
+    else:
+        findings.append(
+            Finding(
+                check_id="workflow.privileged.environment",
+                severity=Severity.OK,
+                title="Privileged workflows declare environment gates or are absent",
+                detail="Workflows with obvious publish/write privileges reference a GitHub Environment or no privileged workflow was detected.",
+            )
+        )
+
     return findings
 
 
@@ -619,6 +649,43 @@ def _has_write_permission(lines: list[str]) -> bool:
         if re.search(r":\s*write\b", stripped):
             return True
     return False
+
+
+def _has_environment_gate(lines: list[str]) -> bool:
+    return any(line.strip().startswith("environment:") for line in lines)
+
+
+def _is_privileged_workflow(lines: list[str], action_refs: set[str]) -> bool:
+    return (
+        _has_write_permission(lines)
+        or _mentions_event(lines, "pull_request_target")
+        or "softprops/action-gh-release" in action_refs
+        or _has_release_command(lines)
+    )
+
+
+def _has_release_command(lines: list[str]) -> bool:
+    return any("gh release" in line or "npm publish" in line or "twine upload" in line for line in lines)
+
+
+def _privileged_workflow_matches(path: str, lines: list[str], action_refs: set[str]) -> list[LineMatch]:
+    matches: list[LineMatch] = []
+    for index, line in enumerate(lines, start=1):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped == "permissions: write-all" or stripped == "write-all" or re.search(r":\s*write\b", stripped):
+            matches.append(LineMatch(path, index, stripped))
+        if "pull_request_target" in stripped:
+            matches.append(LineMatch(path, index, stripped))
+        if "gh release" in stripped or "npm publish" in stripped or "twine upload" in stripped:
+            matches.append(LineMatch(path, index, stripped))
+        match = UNPINNED_ACTION_PATTERN.search(stripped)
+        if match and match.group(1).split("@", 1)[0] == "softprops/action-gh-release":
+            matches.append(LineMatch(path, index, stripped))
+    if not matches and action_refs:
+        matches.append(LineMatch(path, 1, "privileged workflow"))
+    return matches
 
 
 def _walk_commands(value: object) -> list[str]:
