@@ -178,3 +178,90 @@ def test_hook_risks_are_reported(tmp_path: Path) -> None:
     audit = audit_repository(tmp_path, load_config(tmp_path))
 
     assert any(finding.check_id == "hooks.commands.risky" for finding in audit.findings)
+
+
+def test_pull_request_target_and_checkout_credentials_are_reported(tmp_path: Path) -> None:
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    init_repository(tmp_path)
+    workflow = tmp_path / ".github" / "workflows" / "target.yml"
+    workflow.parent.mkdir(parents=True, exist_ok=True)
+    workflow.write_text(
+        """
+name: Target
+on:
+  pull_request_target:
+jobs:
+  target:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: echo test
+""",
+        encoding="utf-8",
+    )
+
+    audit = audit_repository(tmp_path, load_config(tmp_path))
+    warnings = {finding.check_id for finding in audit.findings if finding.severity == Severity.WARNING}
+
+    assert "workflow.pull_request_target" in warnings
+    assert "workflow.checkout.persist_credentials" in warnings
+
+
+def test_checkout_with_persist_credentials_false_is_not_reported(tmp_path: Path) -> None:
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    init_repository(tmp_path)
+    workflow = tmp_path / ".github" / "workflows" / "checkout.yml"
+    workflow.parent.mkdir(parents=True, exist_ok=True)
+    workflow.write_text(
+        """
+name: Checkout
+on:
+  push:
+jobs:
+  checkout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+""",
+        encoding="utf-8",
+    )
+
+    audit = audit_repository(tmp_path, load_config(tmp_path))
+    warnings = {finding.check_id for finding in audit.findings if finding.severity == Severity.WARNING}
+
+    assert "workflow.checkout.persist_credentials" not in warnings
+
+
+def test_download_execute_and_artifact_boundary_are_reported(tmp_path: Path) -> None:
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    init_repository(tmp_path)
+    workflow = tmp_path / ".github" / "workflows" / "supply-chain.yml"
+    workflow.parent.mkdir(parents=True, exist_ok=True)
+    workflow.write_text(
+        """
+name: Supply chain
+on:
+  push:
+jobs:
+  chain:
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl https://example.com/install.sh | bash
+      - uses: actions/upload-artifact@v5
+        with:
+          name: payload
+          path: payload.txt
+      - uses: actions/download-artifact@v5
+        with:
+          name: payload
+""",
+        encoding="utf-8",
+    )
+
+    audit = audit_repository(tmp_path, load_config(tmp_path))
+    warnings = {finding.check_id for finding in audit.findings if finding.severity == Severity.WARNING}
+
+    assert "workflow.download_execute" in warnings
+    assert "workflow.artifact.boundary" in warnings

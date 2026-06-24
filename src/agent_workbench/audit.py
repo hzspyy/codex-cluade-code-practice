@@ -30,6 +30,9 @@ SECRET_PATTERNS = (
 NETWORK_COMMAND_PATTERN = re.compile(r"\b(curl|wget|nc|ncat|ssh|scp|rsync)\b")
 DESTRUCTIVE_COMMAND_PATTERN = re.compile(r"\b(rm\s+-rf|chmod\s+-R\s+777|git\s+reset\s+--hard)\b")
 UNPINNED_ACTION_PATTERN = re.compile(r"uses:\s*([^\s#]+)")
+DOWNLOAD_EXEC_PATTERN = re.compile(
+    r"\b(curl|wget)\b.*(\|\s*(bash|sh|python|ruby)|\b(bash|sh|python|ruby)\b)",
+)
 
 
 @dataclass(frozen=True)
@@ -295,12 +298,17 @@ def _check_workflow_risks(
     unpinned = []
     broad_permissions = []
     pull_request_writes = []
+    pull_request_target = []
+    checkout_credentials = []
+    download_exec = []
+    artifact_boundary = []
     for path in workflow_files:
         rel = path.relative_to(root).as_posix()
         try:
             lines = path.read_text(encoding="utf-8").splitlines()
         except UnicodeDecodeError:
             continue
+        action_refs = _action_references(lines)
         for index, line in enumerate(lines, start=1):
             stripped = line.strip()
             permission_key = stripped.split(":", 1)[0] if ":" in stripped else ""
@@ -316,6 +324,8 @@ def _check_workflow_risks(
                 and match.group(1).split("@", 1)[0] not in allowed_unpinned_actions
             ):
                 unpinned.append(LineMatch(rel, index, stripped))
+            if DOWNLOAD_EXEC_PATTERN.search(stripped):
+                download_exec.append(LineMatch(rel, index, stripped))
 
         if (
             rel not in allowed_write_permission_workflows
@@ -323,6 +333,12 @@ def _check_workflow_risks(
             and _has_write_permission(lines)
         ):
             pull_request_writes.append(rel)
+        if _mentions_event(lines, "pull_request_target"):
+            pull_request_target.append(rel)
+        for match in _checkout_without_persist_false(lines):
+            checkout_credentials.append(LineMatch(rel, match.line_number, match.line))
+        if "actions/upload-artifact" in action_refs and "actions/download-artifact" in action_refs:
+            artifact_boundary.append(rel)
 
     if unpinned:
         findings.append(
@@ -381,6 +397,86 @@ def _check_workflow_risks(
                 severity=Severity.OK,
                 title="No pull_request workflow with write permissions detected",
                 detail="Pull request workflows do not show obvious write-token permission use.",
+            )
+        )
+
+    if pull_request_target:
+        findings.append(
+            Finding(
+                check_id="workflow.pull_request_target",
+                severity=Severity.WARNING,
+                title="pull_request_target workflow detected",
+                detail=", ".join(sorted(set(pull_request_target))),
+                remediation="Use `pull_request_target` only when untrusted PR code is never checked out or executed with privileged tokens.",
+            )
+        )
+    else:
+        findings.append(
+            Finding(
+                check_id="workflow.pull_request_target.absent",
+                severity=Severity.OK,
+                title="No pull_request_target workflows detected",
+                detail="No workflow uses the privileged pull_request_target event.",
+            )
+        )
+
+    if checkout_credentials:
+        findings.append(
+            Finding(
+                check_id="workflow.checkout.persist_credentials",
+                severity=Severity.WARNING,
+                title="actions/checkout does not disable persisted credentials",
+                detail=_format_line_matches(checkout_credentials),
+                remediation="Set `persist-credentials: false` when later steps run untrusted code or do not need git push credentials.",
+            )
+        )
+    else:
+        findings.append(
+            Finding(
+                check_id="workflow.checkout.credentials",
+                severity=Severity.OK,
+                title="No risky actions/checkout credential persistence detected",
+                detail="Checkout steps either avoid obvious risk contexts or set `persist-credentials: false`.",
+            )
+        )
+
+    if download_exec:
+        findings.append(
+            Finding(
+                check_id="workflow.download_execute",
+                severity=Severity.WARNING,
+                title="Workflow downloads and executes code in one shell step",
+                detail=_format_line_matches(download_exec),
+                remediation="Download, verify integrity, and execute in separate reviewed steps; avoid `curl | bash` patterns.",
+            )
+        )
+    else:
+        findings.append(
+            Finding(
+                check_id="workflow.download_execute.absent",
+                severity=Severity.OK,
+                title="No download-and-execute shell pattern detected",
+                detail="Workflow run steps avoid obvious curl/wget execution chains.",
+            )
+        )
+
+    if artifact_boundary:
+        findings.append(
+            Finding(
+                check_id="workflow.artifact.boundary",
+                severity=Severity.WARNING,
+                title="Workflow both uploads and downloads artifacts",
+                detail=", ".join(sorted(set(artifact_boundary))),
+                remediation="Treat downloaded artifacts as untrusted unless producer and consumer jobs are constrained and verified.",
+            )
+        )
+    else:
+        findings.append(
+            Finding(
+                check_id="workflow.artifact.boundary",
+                severity=Severity.OK,
+                title="No same-workflow upload/download artifact boundary detected",
+                detail="No workflow combines upload-artifact and download-artifact actions.",
             )
         )
 
@@ -454,6 +550,28 @@ def _is_unpinned_third_party_action(reference: str) -> bool:
     if name.startswith("actions/") or name.startswith("github/"):
         return False
     return not re.fullmatch(r"[a-fA-F0-9]{40}", ref)
+
+
+def _action_references(lines: list[str]) -> set[str]:
+    refs: set[str] = set()
+    for line in lines:
+        match = UNPINNED_ACTION_PATTERN.search(line.strip())
+        if match:
+            refs.add(match.group(1).split("@", 1)[0])
+    return refs
+
+
+def _checkout_without_persist_false(lines: list[str]) -> list[LineMatch]:
+    matches: list[LineMatch] = []
+    for index, line in enumerate(lines, start=1):
+        stripped = line.strip()
+        match = UNPINNED_ACTION_PATTERN.search(stripped)
+        if not match or match.group(1).split("@", 1)[0] != "actions/checkout":
+            continue
+        window = "\n".join(lines[index : min(len(lines), index + 8)])
+        if "persist-credentials: false" not in window:
+            matches.append(LineMatch("", index, stripped))
+    return matches
 
 
 def _mentions_event(lines: list[str], event: str) -> bool:

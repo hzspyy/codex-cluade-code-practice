@@ -36,6 +36,11 @@ Agent Workbench now checks for several automation risks:
   commit SHAs
 - broad GitHub token permissions such as `write-all` or `contents: write`
 - `pull_request` workflows that request write permissions
+- privileged `pull_request_target` workflows
+- checkout steps that do not set `persist-credentials: false`
+- shell steps that download and immediately execute code
+- workflows that both upload and download artifacts, which can blur artifact
+  trust boundaries
 - Codex or Claude lifecycle hook commands containing common network or
   destructive shell patterns
 

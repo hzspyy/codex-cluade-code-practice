@@ -22,6 +22,8 @@ scripts reviewable in git.
 - Every audit failure should include actionable remediation.
 - Treat new allowlist entries in `agent-workbench.toml` as security-relevant;
   prefer narrowing the workflow or hook before allowlisting.
+- When adding workflow risk rules, add at least one positive detection test and
+  one safe-path or repository-level validation path.
 
 ## Commands
 
