@@ -47,6 +47,7 @@ agent-workbench audit --json .
 agent-workbench audit --format markdown -o audit.md .
 agent-workbench audit --format sarif -o agent-workbench.sarif .
 agent-workbench audit --strict --changed-lines --base-ref origin/main .
+agent-workbench summary --from-json audit.json --format markdown
 ```
 
 JSON and SARIF reports include structured file/line locations for findings that
@@ -85,6 +86,9 @@ gates without requiring a full historical cleanup in the same change.
   agent-ready repository.
 - `agent-workbench doctor`: report whether local tools such as `git`, `gh`,
   `codex`, and `claude` are available.
+- `agent-workbench summary [path]`: emit a compact Markdown or JSON summary for
+  PR comments, dashboards, or agent handoffs. Use `--from-json audit.json` to
+  summarize a saved audit report.
 
 ## Configuration
 

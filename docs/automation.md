@@ -22,6 +22,7 @@ agent-workbench audit --format sarif -o agent-workbench.sarif .
 agent-workbench audit --write-baseline agent-workbench-baseline.json .
 agent-workbench audit --strict --baseline agent-workbench-baseline.json .
 agent-workbench audit --strict --changed-lines --base-ref origin/main .
+agent-workbench summary --from-json agent-workbench-audit.json -o summary.md
 agent-workbench init /path/to/another/repo
 ```
 
@@ -46,6 +47,10 @@ warnings and errors so public PR feedback remains actionable.
 
 Findings include structured locations where the scanner can identify a concrete
 file and line. SARIF consumers can use those locations for inline annotations.
+
+Use `summary` when you want a compact artifact for PR comments, release notes,
+or agent handoffs. It can run an audit directly, or read a saved JSON audit with
+`--from-json` and emit Markdown or JSON.
 
 ## Risk rules
 

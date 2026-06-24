@@ -15,6 +15,7 @@ from .changed_lines import apply_changed_lines, git_changed_lines
 from .config import load_config
 from .init_repo import init_repository
 from .reporting import render_audit
+from .summary import load_audit_json, summary_to_json, summary_to_markdown
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -68,6 +69,21 @@ def build_parser() -> argparse.ArgumentParser:
 
     doctor = subparsers.add_parser("doctor", help="check local tool availability")
     doctor.add_argument("--json", action="store_true", help="emit JSON")
+
+    summary = subparsers.add_parser("summary", help="summarize audit findings")
+    summary.add_argument("path", nargs="?", default=".", help="repository path")
+    summary.add_argument(
+        "--from-json",
+        help="read a saved agent-workbench audit JSON report instead of running an audit",
+    )
+    summary.add_argument(
+        "--format",
+        choices=("markdown", "json"),
+        default="markdown",
+        help="summary output format",
+    )
+    summary.add_argument("--config", help="path to agent-workbench.toml")
+    summary.add_argument("--output", "-o", help="write the summary to a file")
 
     return parser
 
@@ -123,6 +139,20 @@ def main(argv: list[str] | None = None) -> int:
                 status = "ok" if item["available"] else "missing"
                 print(f"{status}: {item['name']} {item.get('version', '')}".rstrip())
         return 0 if all(item["available"] for item in result["tools"]) else 1
+
+    if args.command == "summary":
+        if args.from_json:
+            result = load_audit_json(Path(args.from_json))
+        else:
+            root = detect_git_root(Path(args.path))
+            config = load_config(root, Path(args.config).resolve() if args.config else None)
+            result = audit_repository(root, config)
+        rendered = summary_to_json(result) if args.format == "json" else summary_to_markdown(result)
+        if args.output:
+            Path(args.output).write_text(rendered + "\n", encoding="utf-8")
+        else:
+            print(rendered)
+        return 0 if result.passed else 1
 
     parser.error(f"unknown command: {args.command}")
     return 2
