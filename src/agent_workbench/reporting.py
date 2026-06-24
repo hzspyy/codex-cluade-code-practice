@@ -1,0 +1,120 @@
+"""Render audit and init results."""
+
+from __future__ import annotations
+
+import json
+
+from .models import AuditResult, Severity
+
+
+def audit_to_json(result: AuditResult) -> str:
+    return json.dumps(result.as_dict(), indent=2, sort_keys=True)
+
+
+def audit_to_text(result: AuditResult) -> str:
+    lines = [
+        f"agent-workbench audit: {result.root}",
+        f"status: {'pass' if result.passed else 'fail'}",
+        f"errors: {result.error_count}, warnings: {result.warning_count}",
+        "",
+    ]
+    for finding in result.findings:
+        marker = _marker(finding.severity)
+        location = f" [{finding.path}]" if finding.path else ""
+        lines.append(f"{marker} {finding.check_id}{location}: {finding.title}")
+        lines.append(f"  {finding.detail}")
+        if finding.remediation:
+            lines.append(f"  fix: {finding.remediation}")
+    return "\n".join(lines)
+
+
+def audit_to_markdown(result: AuditResult) -> str:
+    lines = [
+        "# Agent Workbench Audit",
+        "",
+        f"- Root: `{result.root}`",
+        f"- Status: `{'pass' if result.passed else 'fail'}`",
+        f"- Errors: `{result.error_count}`",
+        f"- Warnings: `{result.warning_count}`",
+        "",
+        "| Severity | Check | Path | Finding |",
+        "| --- | --- | --- | --- |",
+    ]
+    for finding in result.findings:
+        path = f"`{finding.path}`" if finding.path else ""
+        detail = finding.detail.replace("|", "\\|")
+        remediation = f"<br>Fix: {finding.remediation}" if finding.remediation else ""
+        lines.append(
+            f"| `{finding.severity.value}` | `{finding.check_id}` | {path} | "
+            f"{finding.title}<br>{detail}{remediation} |"
+        )
+    return "\n".join(lines)
+
+
+def audit_to_sarif(result: AuditResult) -> str:
+    rules = {}
+    sarif_results = []
+    for finding in result.findings:
+        if finding.severity in (Severity.OK, Severity.INFO):
+            continue
+        rules[finding.check_id] = {
+            "id": finding.check_id,
+            "name": finding.title,
+            "shortDescription": {"text": finding.title},
+            "fullDescription": {"text": finding.detail},
+            "help": {"text": finding.remediation or finding.detail},
+        }
+        sarif_result = {
+            "ruleId": finding.check_id,
+            "level": "error" if finding.severity == Severity.ERROR else "warning",
+            "message": {"text": finding.detail},
+        }
+        if finding.path:
+            sarif_result["locations"] = [
+                {
+                    "physicalLocation": {
+                        "artifactLocation": {"uri": finding.path},
+                        "region": {"startLine": 1},
+                    }
+                }
+            ]
+        sarif_results.append(sarif_result)
+
+    payload = {
+        "version": "2.1.0",
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "runs": [
+            {
+                "tool": {
+                    "driver": {
+                        "name": "agent-workbench",
+                        "informationUri": "https://github.com/hzspyy/codex-cluade-code-practice",
+                        "rules": list(rules.values()),
+                    }
+                },
+                "results": sarif_results,
+            }
+        ],
+    }
+    return json.dumps(payload, indent=2, sort_keys=True)
+
+
+def render_audit(result: AuditResult, output_format: str) -> str:
+    if output_format == "text":
+        return audit_to_text(result)
+    if output_format == "json":
+        return audit_to_json(result)
+    if output_format == "markdown":
+        return audit_to_markdown(result)
+    if output_format == "sarif":
+        return audit_to_sarif(result)
+    raise ValueError(f"unsupported output format: {output_format}")
+
+
+def _marker(severity: Severity) -> str:
+    return {
+        Severity.OK: "OK",
+        Severity.INFO: "INFO",
+        Severity.WARNING: "WARN",
+        Severity.ERROR: "ERR",
+    }[severity]

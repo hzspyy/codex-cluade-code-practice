@@ -1,0 +1,11 @@
+.agent-state/
+.codex-log/
+.env
+.env.*
+!.env.example
+.venv/
+node_modules/
+__pycache__/
+*.egg-info/
+dist/
+.DS_Store

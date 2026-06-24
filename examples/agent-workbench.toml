@@ -1,0 +1,15 @@
+[audit]
+required_files = [
+  "AGENTS.md",
+  "CLAUDE.md",
+  "LICENSE",
+  ".github/pull_request_template.md",
+  ".github/workflows/validate.yml"
+]
+json_files = [".codex/hooks.json", ".claude/settings.json"]
+executable_files = ["scripts/validate.sh", ".githooks/pre-commit"]
+ignored_dirs = [".git", ".venv", "__pycache__", "node_modules", "dist", "build"]
+
+[guidance]
+"AGENTS.md" = ["Review guidelines", "Commands", "Pull request checklist"]
+"CLAUDE.md" = ["validate"]
