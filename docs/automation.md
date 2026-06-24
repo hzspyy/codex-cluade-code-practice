@@ -28,6 +28,9 @@ non-zero for warnings.
 The SARIF output can be uploaded to GitHub code scanning. Keep it focused on
 warnings and errors so public PR feedback remains actionable.
 
+Findings include structured locations where the scanner can identify a concrete
+file and line. SARIF consumers can use those locations for inline annotations.
+
 ## Risk rules
 
 Agent Workbench now checks for several automation risks:

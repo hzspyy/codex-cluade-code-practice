@@ -48,6 +48,10 @@ agent-workbench audit --format markdown -o audit.md .
 agent-workbench audit --format sarif -o agent-workbench.sarif .
 ```
 
+JSON and SARIF reports include structured file/line locations for findings that
+come from workflow or hook scans, so CI systems can annotate the risky lines
+instead of only showing a summary.
+
 ## Commands
 
 - `agent-workbench audit [path]`: check for repository guidance, CI, hooks,

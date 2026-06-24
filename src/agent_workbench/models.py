@@ -14,6 +14,18 @@ class Severity(str, Enum):
 
 
 @dataclass(frozen=True)
+class FindingLocation:
+    path: str
+    line: int = 1
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "path": self.path,
+            "line": self.line,
+        }
+
+
+@dataclass(frozen=True)
 class Finding:
     check_id: str
     severity: Severity
@@ -21,8 +33,12 @@ class Finding:
     detail: str
     path: str | None = None
     remediation: str | None = None
+    locations: tuple[FindingLocation, ...] = ()
 
-    def as_dict(self) -> dict[str, str | None]:
+    def as_dict(self) -> dict[str, object]:
+        locations = self.locations
+        if not locations and self.path:
+            locations = (FindingLocation(path=self.path),)
         return {
             "check_id": self.check_id,
             "severity": self.severity.value,
@@ -30,6 +46,7 @@ class Finding:
             "detail": self.detail,
             "path": self.path,
             "remediation": self.remediation,
+            "locations": [location.as_dict() for location in locations],
         }
 
 
