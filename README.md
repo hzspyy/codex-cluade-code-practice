@@ -149,8 +149,8 @@ MIT. See `LICENSE`.
 Release artifacts are built from version tags:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
 The release workflow builds a source distribution and wheel, uploads them as
