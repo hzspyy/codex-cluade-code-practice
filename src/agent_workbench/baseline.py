@@ -21,16 +21,23 @@ def load_baseline(path: Path) -> set[str]:
     if not isinstance(findings, list):
         raise ValueError("baseline findings must be an array")
 
-    signatures: set[str] = set()
+    identities: set[str] = set()
     for item in findings:
-        if not isinstance(item, dict) or not isinstance(item.get("signature"), str):
-            raise ValueError("baseline entries must include a string signature")
-        signatures.add(item["signature"])
-    return signatures
+        if not isinstance(item, dict):
+            raise ValueError("baseline entries must be objects")
+        fingerprint = item.get("fingerprint")
+        signature = item.get("signature")
+        if isinstance(fingerprint, str):
+            identities.add(fingerprint)
+        elif isinstance(signature, str):
+            identities.add(signature)
+        else:
+            raise ValueError("baseline entries must include a string fingerprint or signature")
+    return identities
 
 
-def apply_baseline(result: AuditResult, signatures: set[str]) -> AuditResult:
-    findings = tuple(_apply_to_finding(finding, signatures) for finding in result.findings)
+def apply_baseline(result: AuditResult, identities: set[str]) -> AuditResult:
+    findings = tuple(_apply_to_finding(finding, identities) for finding in result.findings)
     return AuditResult(root=result.root, findings=findings)
 
 
@@ -38,6 +45,7 @@ def baseline_payload(result: AuditResult) -> dict[str, object]:
     findings = [
         {
             "signature": finding.signature,
+            "fingerprint": finding.fingerprint,
             "check_id": finding.check_id,
             "severity": finding.severity.value,
             "title": finding.title,
@@ -58,9 +66,9 @@ def write_baseline(result: AuditResult, path: Path) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def _apply_to_finding(finding: Finding, signatures: set[str]) -> Finding:
+def _apply_to_finding(finding: Finding, identities: set[str]) -> Finding:
     if finding.severity not in (Severity.ERROR, Severity.WARNING):
         return finding
-    if finding.signature not in signatures:
+    if finding.fingerprint not in identities and finding.signature not in identities:
         return finding
     return replace(finding, baselined=True)

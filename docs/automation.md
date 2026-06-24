@@ -47,6 +47,9 @@ warnings and errors so public PR feedback remains actionable.
 
 Findings include structured locations where the scanner can identify a concrete
 file and line. SARIF consumers can use those locations for inline annotations.
+JSON consumers should prefer each finding's `fingerprint` over `signature` for
+durable identity; `fingerprint` remains stable when a repository changes
+severity policy with `audit.severity_overrides`.
 
 Use `summary` when you want a compact artifact for PR comments, release notes,
 or agent handoffs. It can run an audit directly, or read a saved JSON audit with
