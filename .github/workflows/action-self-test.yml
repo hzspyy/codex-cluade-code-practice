@@ -23,11 +23,15 @@ jobs:
         with:
           format: markdown
           output: agent-workbench-audit.md
+      - name: Create empty baseline
+        run: |
+          printf '{"version":1,"findings":[]}\n' > empty-baseline.json
       - name: Run local composite action with SARIF
         uses: ./
         with:
           format: sarif
           output: agent-workbench.sarif
+          baseline: empty-baseline.json
       - name: Validate SARIF JSON
         run: python -m json.tool agent-workbench.sarif >/dev/null
       - name: Upload SARIF artifact

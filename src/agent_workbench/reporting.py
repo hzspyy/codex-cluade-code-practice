@@ -16,12 +16,14 @@ def audit_to_text(result: AuditResult) -> str:
         f"agent-workbench audit: {result.root}",
         f"status: {'pass' if result.passed else 'fail'}",
         f"errors: {result.error_count}, warnings: {result.warning_count}",
+        f"baselined: {result.baselined_count}",
         "",
     ]
     for finding in result.findings:
         marker = _marker(finding.severity)
         location = f" [{_display_location(finding)}]" if _display_location(finding) else ""
-        lines.append(f"{marker} {finding.check_id}{location}: {finding.title}")
+        baseline = " (baseline)" if finding.baselined else ""
+        lines.append(f"{marker} {finding.check_id}{location}{baseline}: {finding.title}")
         lines.append(f"  {finding.detail}")
         if finding.remediation:
             lines.append(f"  fix: {finding.remediation}")
@@ -36,17 +38,19 @@ def audit_to_markdown(result: AuditResult) -> str:
         f"- Status: `{'pass' if result.passed else 'fail'}`",
         f"- Errors: `{result.error_count}`",
         f"- Warnings: `{result.warning_count}`",
+        f"- Baselined: `{result.baselined_count}`",
         "",
-        "| Severity | Check | Path | Finding |",
-        "| --- | --- | --- | --- |",
+        "| Severity | Check | Path | Baseline | Finding |",
+        "| --- | --- | --- | --- | --- |",
     ]
     for finding in result.findings:
         location = _display_location(finding)
         path = f"`{location}`" if location else ""
         detail = finding.detail.replace("|", "\\|")
         remediation = f"<br>Fix: {finding.remediation}" if finding.remediation else ""
+        baseline = "yes" if finding.baselined else ""
         lines.append(
-            f"| `{finding.severity.value}` | `{finding.check_id}` | {path} | "
+            f"| `{finding.severity.value}` | `{finding.check_id}` | {path} | {baseline} | "
             f"{finding.title}<br>{detail}{remediation} |"
         )
     return "\n".join(lines)
@@ -56,7 +60,7 @@ def audit_to_sarif(result: AuditResult) -> str:
     rules = {}
     sarif_results = []
     for finding in result.findings:
-        if finding.severity in (Severity.OK, Severity.INFO):
+        if finding.severity in (Severity.OK, Severity.INFO) or finding.baselined:
             continue
         rules[finding.check_id] = {
             "id": finding.check_id,

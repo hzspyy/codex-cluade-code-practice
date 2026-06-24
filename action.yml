@@ -23,6 +23,10 @@ inputs:
     description: Optional path to agent-workbench.toml.
     required: false
     default: ""
+  baseline:
+    description: Optional path to a committed baseline JSON file.
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -43,6 +47,9 @@ runs:
         fi
         if [[ "${{ inputs.config }}" != "" ]]; then
           args+=(--config "${{ inputs.config }}")
+        fi
+        if [[ "${{ inputs.baseline }}" != "" ]]; then
+          args+=(--baseline "${{ inputs.baseline }}")
         fi
         args+=("${{ inputs.path }}")
         agent-workbench "${args[@]}"

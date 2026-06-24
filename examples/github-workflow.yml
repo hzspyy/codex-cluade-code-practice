@@ -14,10 +14,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: hzspyy/codex-cluade-code-practice@main
         with:
           format: sarif
           output: agent-workbench.sarif
+          baseline: agent-workbench-baseline.json
       - uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
