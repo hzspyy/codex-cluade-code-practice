@@ -29,12 +29,67 @@ def test_write_and_apply_baseline_marks_existing_findings(tmp_path: Path) -> Non
     baseline = tmp_path / "agent-workbench-baseline.json"
 
     write_baseline(result, baseline)
+    payload = json.loads(baseline.read_text(encoding="utf-8"))
     signatures = load_baseline(baseline)
     baselined = apply_baseline(result, signatures)
 
+    assert "fingerprint" in payload["findings"][0]
+    assert "signature" in payload["findings"][0]
     assert baselined.warning_count == 0
     assert baselined.total_warning_count == 1
     assert baselined.baselined_count == 1
+    assert baselined.findings[0].baselined
+
+
+def test_baseline_fingerprint_survives_severity_changes(tmp_path: Path) -> None:
+    warning = Finding(
+        check_id="workflow.actions.unpinned",
+        severity=Severity.WARNING,
+        title="Unpinned action",
+        detail="vendor/action@v1",
+        path=".github/workflows/ci.yml",
+    )
+    error = Finding(
+        check_id="workflow.actions.unpinned",
+        severity=Severity.ERROR,
+        title="Unpinned action",
+        detail="vendor/action@v1",
+        path=".github/workflows/ci.yml",
+    )
+    baseline = tmp_path / "agent-workbench-baseline.json"
+
+    write_baseline(AuditResult(root=str(tmp_path), findings=(warning,)), baseline)
+    baselined = apply_baseline(
+        AuditResult(root=str(tmp_path), findings=(error,)),
+        load_baseline(baseline),
+    )
+
+    assert warning.signature != error.signature
+    assert warning.fingerprint == error.fingerprint
+    assert baselined.error_count == 0
+    assert baselined.findings[0].baselined
+
+
+def test_legacy_signature_only_baseline_still_applies(tmp_path: Path) -> None:
+    finding = Finding(
+        check_id="workflow.actions.unpinned",
+        severity=Severity.WARNING,
+        title="Unpinned action",
+        detail="vendor/action@v1",
+        path=".github/workflows/ci.yml",
+    )
+    baseline = tmp_path / "agent-workbench-baseline.json"
+    baseline.write_text(
+        json.dumps({"version": 1, "findings": [{"signature": finding.signature}]}),
+        encoding="utf-8",
+    )
+
+    baselined = apply_baseline(
+        AuditResult(root=str(tmp_path), findings=(finding,)),
+        load_baseline(baseline),
+    )
+
+    assert baselined.warning_count == 0
     assert baselined.findings[0].baselined
 
 

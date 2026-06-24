@@ -54,6 +54,11 @@ JSON and SARIF reports include structured file/line locations for findings that
 come from workflow or hook scans, so CI systems can annotate the risky lines
 instead of only showing a summary.
 
+JSON findings include both `signature` and `fingerprint`. `signature` preserves
+the policy-sensitive identity used by older releases, while `fingerprint` is
+stable across severity overrides and should be preferred for new baseline or
+dashboard integrations.
+
 For an existing repository, create a committed baseline so CI blocks new
 automation risk without demanding a cleanup of every historical warning first:
 

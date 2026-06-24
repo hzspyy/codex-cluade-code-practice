@@ -35,6 +35,7 @@ def test_cli_audit_json_passes_after_git_init(tmp_path: Path, capsys) -> None:
     assert code == 0
     assert '"passed": true' in captured.out
     assert '"locations"' in captured.out
+    assert '"fingerprint"' in captured.out
 
 
 def test_cli_writes_markdown_report(tmp_path: Path) -> None:

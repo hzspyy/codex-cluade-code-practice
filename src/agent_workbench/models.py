@@ -50,6 +50,7 @@ class Finding:
             "remediation": self.remediation,
             "locations": [location.as_dict() for location in self.resolved_locations],
             "signature": self.signature,
+            "fingerprint": self.fingerprint,
             "baselined": self.baselined,
             "suppressed": self.suppressed,
             "suppression_reason": self.suppression_reason,
@@ -68,6 +69,17 @@ class Finding:
         payload = {
             "check_id": self.check_id,
             "severity": self.severity.value,
+            "title": self.title,
+            "path": self.path,
+            "locations": [location.as_dict() for location in self.resolved_locations],
+        }
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
+    @property
+    def fingerprint(self) -> str:
+        payload = {
+            "check_id": self.check_id,
             "title": self.title,
             "path": self.path,
             "locations": [location.as_dict() for location in self.resolved_locations],
