@@ -35,6 +35,14 @@ inputs:
     description: Git ref used when changed-lines is true.
     required: false
     default: "origin/main"
+  summary-output:
+    description: Optional path for a compact audit summary.
+    required: false
+    default: ""
+  summary-format:
+    description: "Summary output format: markdown or json."
+    required: false
+    default: "markdown"
 
 runs:
   using: composite
@@ -64,3 +72,25 @@ runs:
         fi
         args+=("${{ inputs.path }}")
         agent-workbench "${args[@]}"
+    - name: Write Agent Workbench summary
+      if: inputs.summary-output != ''
+      shell: bash
+      run: |
+        set -euo pipefail
+        report="$(mktemp)"
+        args=(audit --format json --output "$report")
+        if [[ "${{ inputs.config }}" != "" ]]; then
+          args+=(--config "${{ inputs.config }}")
+        fi
+        if [[ "${{ inputs.baseline }}" != "" ]]; then
+          args+=(--baseline "${{ inputs.baseline }}")
+        fi
+        if [[ "${{ inputs.changed-lines }}" == "true" ]]; then
+          args+=(--changed-lines --base-ref "${{ inputs.base-ref }}")
+        fi
+        args+=("${{ inputs.path }}")
+        agent-workbench "${args[@]}"
+        agent-workbench summary \
+          --from-json "$report" \
+          --format "${{ inputs.summary-format }}" \
+          --output "${{ inputs.summary-output }}"

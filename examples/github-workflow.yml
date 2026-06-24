@@ -23,7 +23,13 @@ jobs:
           baseline: agent-workbench-baseline.json
           changed-lines: "true"
           base-ref: origin/main
+          summary-output: agent-workbench-summary.md
       - uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: agent-workbench.sarif
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: agent-workbench-summary
+          path: agent-workbench-summary.md

@@ -140,6 +140,7 @@ Use this repository as a composite action:
     baseline: agent-workbench-baseline.json
     changed-lines: "true"
     base-ref: origin/main
+    summary-output: agent-workbench-summary.md
 ```
 
 See `docs/github-action.md` for a complete workflow, including SARIF upload to

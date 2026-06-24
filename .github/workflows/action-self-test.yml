@@ -23,6 +23,7 @@ jobs:
         with:
           format: markdown
           output: agent-workbench-audit.md
+          summary-output: agent-workbench-summary.md
       - name: Create empty baseline
         run: |
           printf '{"version":1,"findings":[]}\n' > empty-baseline.json
@@ -36,6 +37,8 @@ jobs:
           base-ref: HEAD
       - name: Validate SARIF JSON
         run: python -m json.tool agent-workbench.sarif >/dev/null
+      - name: Validate Markdown summary
+        run: grep -q "Agent Workbench Summary" agent-workbench-summary.md
       - name: Upload SARIF artifact
         uses: actions/upload-artifact@v5
         with:
@@ -45,4 +48,6 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: agent-workbench-markdown
-          path: agent-workbench-audit.md
+          path: |
+            agent-workbench-audit.md
+            agent-workbench-summary.md
