@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import configparser
 import sys
 import tomllib
 from pathlib import Path
@@ -40,8 +39,9 @@ def main() -> int:
     if scripts.get("agent-workbench") != "agent_workbench.cli:main":
         return fail("missing agent-workbench console script")
 
-    license_file = project.get("license", {}).get("file")
-    if license_file != "LICENSE" or not (ROOT / license_file).exists():
+    if project.get("license") != "MIT":
+        return fail("project.license must be the MIT SPDX expression")
+    if "LICENSE" not in project.get("license-files", []) or not (ROOT / "LICENSE").exists():
         return fail("license file is not configured correctly")
 
     for path in ("README.md", "src/agent_workbench/cli.py", "src/agent_workbench/__main__.py"):
