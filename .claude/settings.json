@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 \"$(git rev-parse --show-toplevel)/.claude/hooks/stop_validate_hint.py\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
