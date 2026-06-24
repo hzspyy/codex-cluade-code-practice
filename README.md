@@ -101,7 +101,8 @@ Use this repository as a composite action:
 See `docs/github-action.md` for a complete workflow, including SARIF upload to
 GitHub code scanning.
 
-This repository dogfoods the action in `.github/workflows/action-self-test.yml`.
+This repository dogfoods the local action in `.github/workflows/action-self-test.yml`
+and the released tag in `.github/workflows/tag-action-smoke.yml`.
 
 ## What is included
 

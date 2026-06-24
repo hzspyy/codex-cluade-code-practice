@@ -1,0 +1,23 @@
+name: Tag action smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run released action tag
+        uses: hzspyy/codex-cluade-code-practice@v0.1.0
+        with:
+          format: sarif
+          output: released-action.sarif
+      - name: Validate released action output
+        run: python -m json.tool released-action.sarif >/dev/null

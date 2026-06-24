@@ -34,6 +34,7 @@ require_file .githooks/pre-commit
 require_file .github/workflows/validate.yml
 require_file .github/workflows/action-self-test.yml
 require_file .github/workflows/release.yml
+require_file .github/workflows/tag-action-smoke.yml
 require_file .github/codex/prompts/review.md
 
 step "checking git diff whitespace"
