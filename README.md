@@ -54,8 +54,10 @@ agent-workbench audit --format sarif -o agent-workbench.sarif .
   executable validation scripts, parseable JSON config, and common secret
   patterns. It also checks for high-risk automation patterns such as broad
   GitHub token permissions, write permissions on pull request workflows,
-  unpinned third-party actions, and risky lifecycle hook commands. Supports
-  `text`, `json`, `markdown`, and `sarif` output.
+  `pull_request_target`, credential-persisting checkout steps, unpinned
+  third-party actions, download-and-execute shell chains, artifact trust
+  boundaries, and risky lifecycle hook commands. Supports `text`, `json`,
+  `markdown`, and `sarif` output.
 - `agent-workbench init [path]`: create missing starter files for an
   agent-ready repository.
 - `agent-workbench doctor`: report whether local tools such as `git`, `gh`,
