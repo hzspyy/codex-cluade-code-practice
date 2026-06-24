@@ -20,6 +20,7 @@ class AuditConfig:
     allowed_write_permission_workflows: tuple[str, ...]
     allowed_broad_permission_workflows: tuple[str, ...]
     allowed_ungated_privileged_workflows: tuple[str, ...]
+    severity_overrides: dict[str, str]
 
 
 DEFAULT_REQUIRED_FILES = (
@@ -75,6 +76,7 @@ DEFAULT_ALLOWED_UNPINNED_ACTIONS: tuple[str, ...] = ()
 DEFAULT_ALLOWED_WRITE_PERMISSION_WORKFLOWS: tuple[str, ...] = ()
 DEFAULT_ALLOWED_BROAD_PERMISSION_WORKFLOWS: tuple[str, ...] = ()
 DEFAULT_ALLOWED_UNGATED_PRIVILEGED_WORKFLOWS: tuple[str, ...] = ()
+DEFAULT_SEVERITY_OVERRIDES: dict[str, str] = {}
 
 
 def default_config() -> AuditConfig:
@@ -90,6 +92,7 @@ def default_config() -> AuditConfig:
         allowed_write_permission_workflows=DEFAULT_ALLOWED_WRITE_PERMISSION_WORKFLOWS,
         allowed_broad_permission_workflows=DEFAULT_ALLOWED_BROAD_PERMISSION_WORKFLOWS,
         allowed_ungated_privileged_workflows=DEFAULT_ALLOWED_UNGATED_PRIVILEGED_WORKFLOWS,
+        severity_overrides=DEFAULT_SEVERITY_OVERRIDES,
     )
 
 
@@ -126,6 +129,7 @@ def load_config(root: Path, config_path: Path | None = None) -> AuditConfig:
         base.allowed_ungated_privileged_workflows,
     )
     guidance_terms = _guidance_terms(guidance, base.guidance_terms)
+    severity_overrides = _severity_overrides(audit.get("severity_overrides"), base.severity_overrides)
 
     return AuditConfig(
         required_files=required_files,
@@ -139,6 +143,7 @@ def load_config(root: Path, config_path: Path | None = None) -> AuditConfig:
         allowed_write_permission_workflows=allowed_write_permission_workflows,
         allowed_broad_permission_workflows=allowed_broad_permission_workflows,
         allowed_ungated_privileged_workflows=allowed_ungated_privileged_workflows,
+        severity_overrides=severity_overrides,
     )
 
 
@@ -164,3 +169,19 @@ def _guidance_terms(value: object, default: dict[str, tuple[str, ...]]) -> dict[
             raise ValueError("guidance terms must be arrays of strings")
         merged[path] = tuple(terms)
     return merged
+
+
+def _severity_overrides(value: object, default: dict[str, str]) -> dict[str, str]:
+    if value is None:
+        return default
+    if not isinstance(value, dict):
+        raise ValueError("severity_overrides must be a table")
+    allowed = {"ok", "info", "warning", "error"}
+    overrides: dict[str, str] = {}
+    for check_id, severity in value.items():
+        if not isinstance(check_id, str):
+            raise ValueError("severity override check IDs must be strings")
+        if not isinstance(severity, str) or severity not in allowed:
+            raise ValueError("severity override values must be one of: ok, info, warning, error")
+        overrides[check_id] = severity
+    return overrides

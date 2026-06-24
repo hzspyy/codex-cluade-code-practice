@@ -7,7 +7,7 @@ import os
 import re
 import stat
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from .config import AuditConfig, default_config
@@ -64,6 +64,7 @@ def audit_repository(root: Path, config: AuditConfig | None = None) -> AuditResu
         )
     )
     findings.extend(_check_hook_risks(root, config.hook_json_files))
+    findings = _apply_severity_overrides(findings, config.severity_overrides)
 
     if not any(f.severity == Severity.ERROR for f in findings):
         findings.append(
@@ -76,6 +77,17 @@ def audit_repository(root: Path, config: AuditConfig | None = None) -> AuditResu
         )
 
     return AuditResult(root=str(root), findings=tuple(findings))
+
+
+def _apply_severity_overrides(findings: list[Finding], overrides: dict[str, str]) -> list[Finding]:
+    if not overrides:
+        return findings
+    return [
+        replace(finding, severity=Severity(overrides[finding.check_id]))
+        if finding.check_id in overrides
+        else finding
+        for finding in findings
+    ]
 
 
 def _check_git(root: Path) -> list[Finding]:

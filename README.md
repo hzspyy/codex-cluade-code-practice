@@ -106,6 +106,9 @@ allowed_unpinned_actions = []
 allowed_broad_permission_workflows = []
 allowed_ungated_privileged_workflows = []
 
+[audit.severity_overrides]
+"workflow.actions.unpinned" = "error"
+
 [guidance]
 "AGENTS.md" = ["Review guidelines", "Commands"]
 "CLAUDE.md" = ["validate"]
@@ -116,6 +119,10 @@ Use `--config path/to/file.toml` when the config is not in the repository root.
 Allowlist entries should be rare and documented in review. For example, a
 release workflow may need `contents: write`, but a pull request workflow usually
 should not.
+
+Use `audit.severity_overrides` when a repository wants to enforce stricter or
+softer policy for a specific check without changing the scanner. Prefer
+severity overrides over allowlists when the finding should remain visible.
 
 ## Repository workflow
 
