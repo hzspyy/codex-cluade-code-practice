@@ -27,6 +27,14 @@ inputs:
     description: Optional path to a committed baseline JSON file.
     required: false
     default: ""
+  changed-lines:
+    description: Only fail findings that touch lines changed from base-ref.
+    required: false
+    default: "false"
+  base-ref:
+    description: Git ref used when changed-lines is true.
+    required: false
+    default: "origin/main"
 
 runs:
   using: composite
@@ -50,6 +58,9 @@ runs:
         fi
         if [[ "${{ inputs.baseline }}" != "" ]]; then
           args+=(--baseline "${{ inputs.baseline }}")
+        fi
+        if [[ "${{ inputs.changed-lines }}" == "true" ]]; then
+          args+=(--changed-lines --base-ref "${{ inputs.base-ref }}")
         fi
         args+=("${{ inputs.path }}")
         agent-workbench "${args[@]}"

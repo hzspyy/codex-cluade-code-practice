@@ -37,6 +37,8 @@ class Finding:
     remediation: str | None = None
     locations: tuple[FindingLocation, ...] = ()
     baselined: bool = False
+    suppressed: bool = False
+    suppression_reason: str | None = None
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -49,6 +51,8 @@ class Finding:
             "locations": [location.as_dict() for location in self.resolved_locations],
             "signature": self.signature,
             "baselined": self.baselined,
+            "suppressed": self.suppressed,
+            "suppression_reason": self.suppression_reason,
         }
 
     @property
@@ -82,7 +86,7 @@ class AuditResult:
         return sum(
             1
             for finding in self.findings
-            if finding.severity == Severity.ERROR and not finding.baselined
+            if finding.severity == Severity.ERROR and not finding.baselined and not finding.suppressed
         )
 
     @property
@@ -90,7 +94,7 @@ class AuditResult:
         return sum(
             1
             for finding in self.findings
-            if finding.severity == Severity.WARNING and not finding.baselined
+            if finding.severity == Severity.WARNING and not finding.baselined and not finding.suppressed
         )
 
     @property
@@ -106,6 +110,10 @@ class AuditResult:
         return sum(1 for finding in self.findings if finding.baselined)
 
     @property
+    def suppressed_count(self) -> int:
+        return sum(1 for finding in self.findings if finding.suppressed)
+
+    @property
     def passed(self) -> bool:
         return self.error_count == 0
 
@@ -118,5 +126,6 @@ class AuditResult:
             "total_error_count": self.total_error_count,
             "total_warning_count": self.total_warning_count,
             "baselined_count": self.baselined_count,
+            "suppressed_count": self.suppressed_count,
             "findings": [finding.as_dict() for finding in self.findings],
         }

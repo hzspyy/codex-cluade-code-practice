@@ -21,6 +21,8 @@ jobs:
           format: sarif
           output: agent-workbench.sarif
           baseline: agent-workbench-baseline.json
+          changed-lines: "true"
+          base-ref: origin/main
       - uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:

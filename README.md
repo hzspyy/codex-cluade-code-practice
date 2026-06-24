@@ -46,6 +46,7 @@ The CLI supports machine-readable output:
 agent-workbench audit --json .
 agent-workbench audit --format markdown -o audit.md .
 agent-workbench audit --format sarif -o agent-workbench.sarif .
+agent-workbench audit --strict --changed-lines --base-ref origin/main .
 ```
 
 JSON and SARIF reports include structured file/line locations for findings that
@@ -61,6 +62,11 @@ git add agent-workbench-baseline.json
 agent-workbench audit --strict --baseline agent-workbench-baseline.json .
 ```
 
+For pull requests, `--changed-lines` uses `git diff` and structured finding
+locations to keep old findings visible while failing only warnings or errors
+that touch the current diff. This is useful for repositories that want tight PR
+gates without requiring a full historical cleanup in the same change.
+
 ## Commands
 
 - `agent-workbench audit [path]`: check for repository guidance, CI, hooks,
@@ -72,7 +78,8 @@ agent-workbench audit --strict --baseline agent-workbench-baseline.json .
   boundaries, and risky lifecycle hook commands. Supports `text`, `json`,
   `markdown`, and `sarif` output. Use `--write-baseline` to record current
   warnings and errors, then `--baseline` to keep those accepted findings from
-  failing future runs.
+  failing future runs. Use `--changed-lines --base-ref origin/main` to suppress
+  findings that do not touch the current branch diff.
 - `agent-workbench init [path]`: create missing starter files for an
   agent-ready repository.
 - `agent-workbench doctor`: report whether local tools such as `git`, `gh`,
@@ -125,6 +132,8 @@ Use this repository as a composite action:
     format: sarif
     output: agent-workbench.sarif
     baseline: agent-workbench-baseline.json
+    changed-lines: "true"
+    base-ref: origin/main
 ```
 
 See `docs/github-action.md` for a complete workflow, including SARIF upload to

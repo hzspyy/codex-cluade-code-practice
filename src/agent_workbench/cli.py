@@ -11,6 +11,7 @@ from pathlib import Path
 from . import __version__
 from .audit import audit_repository, detect_git_root
 from .baseline import apply_baseline, load_baseline, write_baseline
+from .changed_lines import apply_changed_lines, git_changed_lines
 from .config import load_config
 from .init_repo import init_repository
 from .reporting import render_audit
@@ -45,6 +46,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="write current warning/error signatures to a baseline JSON file and exit successfully",
     )
     audit.add_argument(
+        "--changed-lines",
+        action="store_true",
+        help="only fail findings that touch lines changed from --base-ref",
+    )
+    audit.add_argument(
+        "--base-ref",
+        default="origin/main",
+        help="git ref used by --changed-lines; default: origin/main",
+    )
+    audit.add_argument(
         "--strict",
         action="store_true",
         help="exit non-zero on warnings as well as errors",
@@ -73,6 +84,8 @@ def main(argv: list[str] | None = None) -> int:
             write_baseline(result, Path(args.write_baseline))
         if args.baseline:
             result = apply_baseline(result, load_baseline(Path(args.baseline)))
+        if args.changed_lines:
+            result = apply_changed_lines(result, git_changed_lines(root, args.base_ref))
         output_format = "json" if args.json else args.format
         rendered = render_audit(result, output_format)
         if args.output:
