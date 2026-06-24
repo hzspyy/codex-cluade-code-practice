@@ -28,6 +28,29 @@ non-zero for warnings.
 The SARIF output can be uploaded to GitHub code scanning. Keep it focused on
 warnings and errors so public PR feedback remains actionable.
 
+## Risk rules
+
+Agent Workbench now checks for several automation risks:
+
+- third-party GitHub Actions referenced by tags or branches instead of full
+  commit SHAs
+- broad GitHub token permissions such as `write-all` or `contents: write`
+- `pull_request` workflows that request write permissions
+- Codex or Claude lifecycle hook commands containing common network or
+  destructive shell patterns
+
+Some workflows legitimately need write access. Configure those exceptions in
+`agent-workbench.toml`:
+
+```toml
+[audit]
+allowed_broad_permission_workflows = [".github/workflows/release.yml"]
+allowed_unpinned_actions = ["owner/action-name"]
+```
+
+Prefer fixing the workflow over allowlisting. When allowlisting is necessary,
+keep the entry narrow and explain it in the pull request.
+
 ## Codex
 
 Codex reads repository guidance from `AGENTS.md`. Keep durable repository rules,
