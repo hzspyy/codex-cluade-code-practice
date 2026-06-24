@@ -20,10 +20,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: hzspyy/codex-cluade-code-practice@main
         with:
           format: sarif
           output: agent-workbench.sarif
+          baseline: agent-workbench-baseline.json
       - uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
@@ -44,6 +47,16 @@ with:
   strict: "true"
 ```
 
+For repositories with existing findings, generate and commit a baseline first:
+
+```bash
+agent-workbench audit --write-baseline agent-workbench-baseline.json .
+```
+
+Then pass that file through the action. Existing matching findings remain in
+JSON, text, and Markdown reports, while SARIF only contains new warnings or
+errors that need review.
+
 Inputs:
 
 | Input | Default | Description |
@@ -53,3 +66,4 @@ Inputs:
 | `output` | empty | Optional file path for the report. |
 | `strict` | `false` | Fail on warnings as well as errors. |
 | `config` | empty | Optional path to `agent-workbench.toml`. |
+| `baseline` | empty | Optional path to a committed baseline JSON file. |

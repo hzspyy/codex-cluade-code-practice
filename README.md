@@ -48,6 +48,19 @@ agent-workbench audit --format markdown -o audit.md .
 agent-workbench audit --format sarif -o agent-workbench.sarif .
 ```
 
+JSON and SARIF reports include structured file/line locations for findings that
+come from workflow or hook scans, so CI systems can annotate the risky lines
+instead of only showing a summary.
+
+For an existing repository, create a committed baseline so CI blocks new
+automation risk without demanding a cleanup of every historical warning first:
+
+```bash
+agent-workbench audit --write-baseline agent-workbench-baseline.json .
+git add agent-workbench-baseline.json
+agent-workbench audit --strict --baseline agent-workbench-baseline.json .
+```
+
 ## Commands
 
 - `agent-workbench audit [path]`: check for repository guidance, CI, hooks,
@@ -57,7 +70,9 @@ agent-workbench audit --format sarif -o agent-workbench.sarif .
   `pull_request_target`, credential-persisting checkout steps, unpinned
   third-party actions, download-and-execute shell chains, artifact trust
   boundaries, and risky lifecycle hook commands. Supports `text`, `json`,
-  `markdown`, and `sarif` output.
+  `markdown`, and `sarif` output. Use `--write-baseline` to record current
+  warnings and errors, then `--baseline` to keep those accepted findings from
+  failing future runs.
 - `agent-workbench init [path]`: create missing starter files for an
   agent-ready repository.
 - `agent-workbench doctor`: report whether local tools such as `git`, `gh`,
@@ -109,6 +124,7 @@ Use this repository as a composite action:
   with:
     format: sarif
     output: agent-workbench.sarif
+    baseline: agent-workbench-baseline.json
 ```
 
 See `docs/github-action.md` for a complete workflow, including SARIF upload to

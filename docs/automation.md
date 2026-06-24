@@ -19,14 +19,25 @@ agent-workbench audit .
 agent-workbench audit --json .
 agent-workbench audit --format markdown -o audit.md .
 agent-workbench audit --format sarif -o agent-workbench.sarif .
+agent-workbench audit --write-baseline agent-workbench-baseline.json .
+agent-workbench audit --strict --baseline agent-workbench-baseline.json .
 agent-workbench init /path/to/another/repo
 ```
 
 `audit` returns non-zero when blocking errors are found. `--strict` also returns
 non-zero for warnings.
 
+Use `--write-baseline` when adopting Agent Workbench in a repository that
+already has known warnings or errors. Commit the generated JSON file, then pass
+it with `--baseline`; matching findings remain visible in text, Markdown, and
+JSON output but do not affect the exit code. SARIF output omits baselined
+findings so code-scanning annotations stay focused on new risk.
+
 The SARIF output can be uploaded to GitHub code scanning. Keep it focused on
 warnings and errors so public PR feedback remains actionable.
+
+Findings include structured locations where the scanner can identify a concrete
+file and line. SARIF consumers can use those locations for inline annotations.
 
 ## Risk rules
 

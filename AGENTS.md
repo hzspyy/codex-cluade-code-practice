@@ -24,6 +24,8 @@ scripts reviewable in git.
   prefer narrowing the workflow or hook before allowlisting.
 - When adding workflow risk rules, add at least one positive detection test and
   one safe-path or repository-level validation path.
+- Preserve structured finding locations when adding new checks so SARIF remains
+  useful in code-scanning UIs.
 
 ## Commands
 

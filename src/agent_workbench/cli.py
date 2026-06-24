@@ -10,6 +10,7 @@ from pathlib import Path
 
 from . import __version__
 from .audit import audit_repository, detect_git_root
+from .baseline import apply_baseline, load_baseline, write_baseline
 from .config import load_config
 from .init_repo import init_repository
 from .reporting import render_audit
@@ -36,6 +37,14 @@ def build_parser() -> argparse.ArgumentParser:
     audit.add_argument("--config", help="path to agent-workbench.toml")
     audit.add_argument("--output", "-o", help="write the report to a file")
     audit.add_argument(
+        "--baseline",
+        help="path to a committed baseline JSON file; matching findings do not fail the audit",
+    )
+    audit.add_argument(
+        "--write-baseline",
+        help="write current warning/error signatures to a baseline JSON file and exit successfully",
+    )
+    audit.add_argument(
         "--strict",
         action="store_true",
         help="exit non-zero on warnings as well as errors",
@@ -60,12 +69,18 @@ def main(argv: list[str] | None = None) -> int:
         root = detect_git_root(Path(args.path))
         config = load_config(root, Path(args.config).resolve() if args.config else None)
         result = audit_repository(root, config)
+        if args.write_baseline:
+            write_baseline(result, Path(args.write_baseline))
+        if args.baseline:
+            result = apply_baseline(result, load_baseline(Path(args.baseline)))
         output_format = "json" if args.json else args.format
         rendered = render_audit(result, output_format)
         if args.output:
             Path(args.output).write_text(rendered + "\n", encoding="utf-8")
         else:
             print(rendered)
+        if args.write_baseline:
+            return 0
         if result.error_count:
             return 1
         if args.strict and result.warning_count:

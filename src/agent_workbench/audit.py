@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .config import AuditConfig, default_config
-from .models import AuditResult, Finding, Severity
+from .models import AuditResult, Finding, FindingLocation, Severity
 
 REQUIRED_FILE_PURPOSES = {
     "AGENTS.md": "Codex project guidance",
@@ -332,13 +332,12 @@ def _check_workflow_risks(
             and _mentions_event(lines, "pull_request")
             and _has_write_permission(lines)
         ):
-            pull_request_writes.append(rel)
-        if _mentions_event(lines, "pull_request_target"):
-            pull_request_target.append(rel)
+            pull_request_writes.extend(_event_matches(rel, lines, "pull_request"))
+        pull_request_target.extend(_event_matches(rel, lines, "pull_request_target"))
         for match in _checkout_without_persist_false(lines):
             checkout_credentials.append(LineMatch(rel, match.line_number, match.line))
         if "actions/upload-artifact" in action_refs and "actions/download-artifact" in action_refs:
-            artifact_boundary.append(rel)
+            artifact_boundary.extend(_artifact_action_matches(rel, lines))
 
     if unpinned:
         findings.append(
@@ -348,6 +347,7 @@ def _check_workflow_risks(
                 title="Third-party GitHub Actions are not pinned to commit SHAs",
                 detail=_format_line_matches(unpinned),
                 remediation="Pin third-party actions to a full commit SHA when the workflow handles sensitive code or secrets.",
+                locations=_locations_from_matches(unpinned),
             )
         )
     else:
@@ -368,6 +368,7 @@ def _check_workflow_risks(
                 title="Broad GitHub token permissions detected",
                 detail=_format_line_matches(broad_permissions),
                 remediation="Prefer least-privilege permissions such as `contents: read` unless writes are required.",
+                locations=_locations_from_matches(broad_permissions),
             )
         )
     else:
@@ -386,8 +387,9 @@ def _check_workflow_risks(
                 check_id="workflow.pull_request.write_permissions",
                 severity=Severity.WARNING,
                 title="Pull request workflows request write permissions",
-                detail=", ".join(sorted(set(pull_request_writes))),
+                detail=_format_line_matches(pull_request_writes),
                 remediation="Avoid write permissions on `pull_request` workflows unless the write path is carefully constrained.",
+                locations=_locations_from_matches(pull_request_writes),
             )
         )
     else:
@@ -406,8 +408,9 @@ def _check_workflow_risks(
                 check_id="workflow.pull_request_target",
                 severity=Severity.WARNING,
                 title="pull_request_target workflow detected",
-                detail=", ".join(sorted(set(pull_request_target))),
+                detail=_format_line_matches(pull_request_target),
                 remediation="Use `pull_request_target` only when untrusted PR code is never checked out or executed with privileged tokens.",
+                locations=_locations_from_matches(pull_request_target),
             )
         )
     else:
@@ -428,6 +431,7 @@ def _check_workflow_risks(
                 title="actions/checkout does not disable persisted credentials",
                 detail=_format_line_matches(checkout_credentials),
                 remediation="Set `persist-credentials: false` when later steps run untrusted code or do not need git push credentials.",
+                locations=_locations_from_matches(checkout_credentials),
             )
         )
     else:
@@ -448,6 +452,7 @@ def _check_workflow_risks(
                 title="Workflow downloads and executes code in one shell step",
                 detail=_format_line_matches(download_exec),
                 remediation="Download, verify integrity, and execute in separate reviewed steps; avoid `curl | bash` patterns.",
+                locations=_locations_from_matches(download_exec),
             )
         )
     else:
@@ -466,8 +471,9 @@ def _check_workflow_risks(
                 check_id="workflow.artifact.boundary",
                 severity=Severity.WARNING,
                 title="Workflow both uploads and downloads artifacts",
-                detail=", ".join(sorted(set(artifact_boundary))),
+                detail=_format_line_matches(artifact_boundary),
                 remediation="Treat downloaded artifacts as untrusted unless producer and consumer jobs are constrained and verified.",
+                locations=_locations_from_matches(artifact_boundary),
             )
         )
     else:
@@ -505,6 +511,7 @@ def _check_hook_risks(root: Path, hook_json_files: tuple[str, ...]) -> list[Find
                 title="Hook commands contain network or destructive shell patterns",
                 detail=_format_line_matches(risky),
                 remediation="Keep lifecycle hooks deterministic and local; move network or destructive behavior behind explicit user review.",
+                locations=_locations_from_matches(risky),
             )
         ]
 
@@ -561,6 +568,30 @@ def _action_references(lines: list[str]) -> set[str]:
     return refs
 
 
+def _event_matches(path: str, lines: list[str], event: str) -> list[LineMatch]:
+    matches: list[LineMatch] = []
+    event_pattern = re.compile(rf"(^|\s|-\s*){re.escape(event)}\s*:")
+    bracket_pattern = re.compile(rf"\[[^\]]*\b{re.escape(event)}\b[^\]]*\]")
+    for index, line in enumerate(lines, start=1):
+        stripped = line.strip()
+        if event_pattern.search(line) or bracket_pattern.search(line):
+            matches.append(LineMatch(path, index, stripped))
+    return matches
+
+
+def _artifact_action_matches(path: str, lines: list[str]) -> list[LineMatch]:
+    matches: list[LineMatch] = []
+    for index, line in enumerate(lines, start=1):
+        stripped = line.strip()
+        match = UNPINNED_ACTION_PATTERN.search(stripped)
+        if not match:
+            continue
+        action = match.group(1).split("@", 1)[0]
+        if action in {"actions/upload-artifact", "actions/download-artifact"}:
+            matches.append(LineMatch(path, index, stripped))
+    return matches
+
+
 def _checkout_without_persist_false(lines: list[str]) -> list[LineMatch]:
     matches: list[LineMatch] = []
     for index, line in enumerate(lines, start=1):
@@ -606,6 +637,10 @@ def _walk_commands(value: object) -> list[str]:
 
 def _format_line_matches(matches: list[LineMatch]) -> str:
     return "; ".join(f"{match.path}:{match.line_number}: {match.line}" for match in matches)
+
+
+def _locations_from_matches(matches: list[LineMatch]) -> tuple[FindingLocation, ...]:
+    return tuple(FindingLocation(path=match.path, line=match.line_number) for match in matches)
 
 
 def detect_git_root(path: Path) -> Path:

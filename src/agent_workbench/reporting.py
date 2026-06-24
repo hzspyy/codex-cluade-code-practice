@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from .models import AuditResult, Severity
+from .models import AuditResult, Finding, FindingLocation, Severity
 
 
 def audit_to_json(result: AuditResult) -> str:
@@ -16,12 +16,14 @@ def audit_to_text(result: AuditResult) -> str:
         f"agent-workbench audit: {result.root}",
         f"status: {'pass' if result.passed else 'fail'}",
         f"errors: {result.error_count}, warnings: {result.warning_count}",
+        f"baselined: {result.baselined_count}",
         "",
     ]
     for finding in result.findings:
         marker = _marker(finding.severity)
-        location = f" [{finding.path}]" if finding.path else ""
-        lines.append(f"{marker} {finding.check_id}{location}: {finding.title}")
+        location = f" [{_display_location(finding)}]" if _display_location(finding) else ""
+        baseline = " (baseline)" if finding.baselined else ""
+        lines.append(f"{marker} {finding.check_id}{location}{baseline}: {finding.title}")
         lines.append(f"  {finding.detail}")
         if finding.remediation:
             lines.append(f"  fix: {finding.remediation}")
@@ -36,16 +38,19 @@ def audit_to_markdown(result: AuditResult) -> str:
         f"- Status: `{'pass' if result.passed else 'fail'}`",
         f"- Errors: `{result.error_count}`",
         f"- Warnings: `{result.warning_count}`",
+        f"- Baselined: `{result.baselined_count}`",
         "",
-        "| Severity | Check | Path | Finding |",
-        "| --- | --- | --- | --- |",
+        "| Severity | Check | Path | Baseline | Finding |",
+        "| --- | --- | --- | --- | --- |",
     ]
     for finding in result.findings:
-        path = f"`{finding.path}`" if finding.path else ""
+        location = _display_location(finding)
+        path = f"`{location}`" if location else ""
         detail = finding.detail.replace("|", "\\|")
         remediation = f"<br>Fix: {finding.remediation}" if finding.remediation else ""
+        baseline = "yes" if finding.baselined else ""
         lines.append(
-            f"| `{finding.severity.value}` | `{finding.check_id}` | {path} | "
+            f"| `{finding.severity.value}` | `{finding.check_id}` | {path} | {baseline} | "
             f"{finding.title}<br>{detail}{remediation} |"
         )
     return "\n".join(lines)
@@ -55,7 +60,7 @@ def audit_to_sarif(result: AuditResult) -> str:
     rules = {}
     sarif_results = []
     for finding in result.findings:
-        if finding.severity in (Severity.OK, Severity.INFO):
+        if finding.severity in (Severity.OK, Severity.INFO) or finding.baselined:
             continue
         rules[finding.check_id] = {
             "id": finding.check_id,
@@ -69,15 +74,9 @@ def audit_to_sarif(result: AuditResult) -> str:
             "level": "error" if finding.severity == Severity.ERROR else "warning",
             "message": {"text": finding.detail},
         }
-        if finding.path:
-            sarif_result["locations"] = [
-                {
-                    "physicalLocation": {
-                        "artifactLocation": {"uri": finding.path},
-                        "region": {"startLine": 1},
-                    }
-                }
-            ]
+        locations = _finding_locations(finding)
+        if locations:
+            sarif_result["locations"] = [_sarif_location(location) for location in locations]
         sarif_results.append(sarif_result)
 
     payload = {
@@ -118,3 +117,30 @@ def _marker(severity: Severity) -> str:
         Severity.WARNING: "WARN",
         Severity.ERROR: "ERR",
     }[severity]
+
+
+def _finding_locations(finding: Finding) -> tuple[FindingLocation, ...]:
+    if finding.locations:
+        return finding.locations
+    if finding.path:
+        return (FindingLocation(path=finding.path),)
+    return ()
+
+
+def _display_location(finding: Finding) -> str:
+    locations = _finding_locations(finding)
+    if not locations:
+        return ""
+    if len(locations) == 1:
+        location = locations[0]
+        return f"{location.path}:{location.line}"
+    return f"{locations[0].path}:{locations[0].line} (+{len(locations) - 1} more)"
+
+
+def _sarif_location(location: FindingLocation) -> dict[str, object]:
+    return {
+        "physicalLocation": {
+            "artifactLocation": {"uri": location.path},
+            "region": {"startLine": location.line},
+        }
+    }
