@@ -13,7 +13,12 @@ required_files = [
 ]
 json_files = [".codex/hooks.json", ".claude/settings.json"]
 executable_files = ["scripts/validate.sh", ".githooks/pre-commit"]
+workflow_files = [".github/workflows/*.yml", "action.yml"]
+hook_json_files = [".codex/hooks.json", ".claude/settings.json"]
 ignored_dirs = [".git", ".venv", "__pycache__", "node_modules", "dist", "build"]
+allowed_unpinned_actions = []
+allowed_broad_permission_workflows = []
+allowed_write_permission_workflows = []
 
 [guidance]
 "AGENTS.md" = ["Review guidelines", "Commands"]
@@ -81,7 +86,7 @@ set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
-./scripts/validate.sh
+bash scripts/validate.sh
 """,
     ".github/pull_request_template.md": """## Summary
 

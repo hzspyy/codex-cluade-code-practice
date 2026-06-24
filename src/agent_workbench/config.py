@@ -14,6 +14,11 @@ class AuditConfig:
     json_files: tuple[str, ...]
     executable_files: tuple[str, ...]
     ignored_dirs: tuple[str, ...]
+    workflow_files: tuple[str, ...]
+    hook_json_files: tuple[str, ...]
+    allowed_unpinned_actions: tuple[str, ...]
+    allowed_write_permission_workflows: tuple[str, ...]
+    allowed_broad_permission_workflows: tuple[str, ...]
 
 
 DEFAULT_REQUIRED_FILES = (
@@ -53,6 +58,22 @@ DEFAULT_IGNORE_DIRS = (
     "build",
 )
 
+DEFAULT_WORKFLOW_FILES = (
+    ".github/workflows/*.yml",
+    ".github/workflows/*.yaml",
+    "action.yml",
+    "action.yaml",
+)
+
+DEFAULT_HOOK_JSON_FILES = (
+    ".codex/hooks.json",
+    ".claude/settings.json",
+)
+
+DEFAULT_ALLOWED_UNPINNED_ACTIONS: tuple[str, ...] = ()
+DEFAULT_ALLOWED_WRITE_PERMISSION_WORKFLOWS: tuple[str, ...] = ()
+DEFAULT_ALLOWED_BROAD_PERMISSION_WORKFLOWS: tuple[str, ...] = ()
+
 
 def default_config() -> AuditConfig:
     return AuditConfig(
@@ -61,6 +82,11 @@ def default_config() -> AuditConfig:
         json_files=DEFAULT_JSON_FILES,
         executable_files=DEFAULT_EXECUTABLE_FILES,
         ignored_dirs=DEFAULT_IGNORE_DIRS,
+        workflow_files=DEFAULT_WORKFLOW_FILES,
+        hook_json_files=DEFAULT_HOOK_JSON_FILES,
+        allowed_unpinned_actions=DEFAULT_ALLOWED_UNPINNED_ACTIONS,
+        allowed_write_permission_workflows=DEFAULT_ALLOWED_WRITE_PERMISSION_WORKFLOWS,
+        allowed_broad_permission_workflows=DEFAULT_ALLOWED_BROAD_PERMISSION_WORKFLOWS,
     )
 
 
@@ -78,6 +104,20 @@ def load_config(root: Path, config_path: Path | None = None) -> AuditConfig:
     json_files = _string_tuple(audit.get("json_files"), base.json_files)
     executable_files = _string_tuple(audit.get("executable_files"), base.executable_files)
     ignored_dirs = _string_tuple(audit.get("ignored_dirs"), base.ignored_dirs)
+    workflow_files = _string_tuple(audit.get("workflow_files"), base.workflow_files)
+    hook_json_files = _string_tuple(audit.get("hook_json_files"), base.hook_json_files)
+    allowed_unpinned_actions = _string_tuple(
+        audit.get("allowed_unpinned_actions"),
+        base.allowed_unpinned_actions,
+    )
+    allowed_write_permission_workflows = _string_tuple(
+        audit.get("allowed_write_permission_workflows"),
+        base.allowed_write_permission_workflows,
+    )
+    allowed_broad_permission_workflows = _string_tuple(
+        audit.get("allowed_broad_permission_workflows"),
+        base.allowed_broad_permission_workflows,
+    )
     guidance_terms = _guidance_terms(guidance, base.guidance_terms)
 
     return AuditConfig(
@@ -86,6 +126,11 @@ def load_config(root: Path, config_path: Path | None = None) -> AuditConfig:
         json_files=json_files,
         executable_files=executable_files,
         ignored_dirs=ignored_dirs,
+        workflow_files=workflow_files,
+        hook_json_files=hook_json_files,
+        allowed_unpinned_actions=allowed_unpinned_actions,
+        allowed_write_permission_workflows=allowed_write_permission_workflows,
+        allowed_broad_permission_workflows=allowed_broad_permission_workflows,
     )
 
 

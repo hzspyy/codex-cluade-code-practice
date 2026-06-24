@@ -20,6 +20,8 @@ scripts reviewable in git.
 - Keep the CLI zero-runtime-dependency unless a dependency clearly pays for
   itself.
 - Every audit failure should include actionable remediation.
+- Treat new allowlist entries in `agent-workbench.toml` as security-relevant;
+  prefer narrowing the workflow or hook before allowlisting.
 
 ## Commands
 

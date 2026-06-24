@@ -7,6 +7,7 @@ import os
 import re
 import stat
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 
 from .config import AuditConfig, default_config
@@ -26,6 +27,17 @@ SECRET_PATTERNS = (
     re.compile(r"\b(?:OPENAI|ANTHROPIC|GITHUB|CODEX)_API_KEY\s*=\s*['\"]?[A-Za-z0-9_./+=-]{12,}"),
 )
 
+NETWORK_COMMAND_PATTERN = re.compile(r"\b(curl|wget|nc|ncat|ssh|scp|rsync)\b")
+DESTRUCTIVE_COMMAND_PATTERN = re.compile(r"\b(rm\s+-rf|chmod\s+-R\s+777|git\s+reset\s+--hard)\b")
+UNPINNED_ACTION_PATTERN = re.compile(r"uses:\s*([^\s#]+)")
+
+
+@dataclass(frozen=True)
+class LineMatch:
+    path: str
+    line_number: int
+    line: str
+
 
 def audit_repository(root: Path, config: AuditConfig | None = None) -> AuditResult:
     root = root.resolve()
@@ -38,6 +50,16 @@ def audit_repository(root: Path, config: AuditConfig | None = None) -> AuditResu
     findings.extend(_check_json_configs(root, config.json_files))
     findings.extend(_check_scripts(root, config.executable_files))
     findings.extend(_check_secret_patterns(root, config.ignored_dirs))
+    findings.extend(
+        _check_workflow_risks(
+            root,
+            config.workflow_files,
+            config.allowed_unpinned_actions,
+            config.allowed_write_permission_workflows,
+            config.allowed_broad_permission_workflows,
+        )
+    )
+    findings.extend(_check_hook_risks(root, config.hook_json_files))
 
     if not any(f.severity == Severity.ERROR for f in findings):
         findings.append(
@@ -251,6 +273,155 @@ def _check_secret_patterns(root: Path, ignored_dirs: tuple[str, ...]) -> list[Fi
     ]
 
 
+def _check_workflow_risks(
+    root: Path,
+    workflow_patterns: tuple[str, ...],
+    allowed_unpinned_actions: tuple[str, ...],
+    allowed_write_permission_workflows: tuple[str, ...],
+    allowed_broad_permission_workflows: tuple[str, ...],
+) -> list[Finding]:
+    findings: list[Finding] = []
+    workflow_files = _expand_patterns(root, workflow_patterns)
+    if not workflow_files:
+        return [
+            Finding(
+                check_id="workflow.present",
+                severity=Severity.INFO,
+                title="No workflow files found",
+                detail="No GitHub Actions or composite action files matched the configured patterns.",
+            )
+        ]
+
+    unpinned = []
+    broad_permissions = []
+    pull_request_writes = []
+    for path in workflow_files:
+        rel = path.relative_to(root).as_posix()
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except UnicodeDecodeError:
+            continue
+        for index, line in enumerate(lines, start=1):
+            stripped = line.strip()
+            permission_key = stripped.split(":", 1)[0] if ":" in stripped else ""
+            if rel not in allowed_broad_permission_workflows:
+                if stripped == "permissions: write-all" or stripped == "write-all":
+                    broad_permissions.append(LineMatch(rel, index, stripped))
+                if re.search(r":\s*write\b", stripped):
+                    broad_permissions.append(LineMatch(rel, index, stripped))
+            match = UNPINNED_ACTION_PATTERN.search(stripped)
+            if (
+                match
+                and _is_unpinned_third_party_action(match.group(1))
+                and match.group(1).split("@", 1)[0] not in allowed_unpinned_actions
+            ):
+                unpinned.append(LineMatch(rel, index, stripped))
+
+        if (
+            rel not in allowed_write_permission_workflows
+            and _mentions_event(lines, "pull_request")
+            and _has_write_permission(lines)
+        ):
+            pull_request_writes.append(rel)
+
+    if unpinned:
+        findings.append(
+            Finding(
+                check_id="workflow.actions.unpinned",
+                severity=Severity.WARNING,
+                title="Third-party GitHub Actions are not pinned to commit SHAs",
+                detail=_format_line_matches(unpinned),
+                remediation="Pin third-party actions to a full commit SHA when the workflow handles sensitive code or secrets.",
+            )
+        )
+    else:
+        findings.append(
+            Finding(
+                check_id="workflow.actions.pinned",
+                severity=Severity.OK,
+                title="No unpinned third-party action references detected",
+                detail="Workflow action references are local, first-party, or pinned to commit-like refs.",
+            )
+        )
+
+    if broad_permissions:
+        findings.append(
+            Finding(
+                check_id="workflow.permissions.broad",
+                severity=Severity.WARNING,
+                title="Broad GitHub token permissions detected",
+                detail=_format_line_matches(broad_permissions),
+                remediation="Prefer least-privilege permissions such as `contents: read` unless writes are required.",
+            )
+        )
+    else:
+        findings.append(
+            Finding(
+                check_id="workflow.permissions.narrow",
+                severity=Severity.OK,
+                title="No broad GitHub token permissions detected",
+                detail="Workflow permission declarations avoid obvious broad write patterns.",
+            )
+        )
+
+    if pull_request_writes:
+        findings.append(
+            Finding(
+                check_id="workflow.pull_request.write_permissions",
+                severity=Severity.WARNING,
+                title="Pull request workflows request write permissions",
+                detail=", ".join(sorted(set(pull_request_writes))),
+                remediation="Avoid write permissions on `pull_request` workflows unless the write path is carefully constrained.",
+            )
+        )
+    else:
+        findings.append(
+            Finding(
+                check_id="workflow.pull_request.permissions",
+                severity=Severity.OK,
+                title="No pull_request workflow with write permissions detected",
+                detail="Pull request workflows do not show obvious write-token permission use.",
+            )
+        )
+
+    return findings
+
+
+def _check_hook_risks(root: Path, hook_json_files: tuple[str, ...]) -> list[Finding]:
+    risky: list[LineMatch] = []
+    for rel in hook_json_files:
+        path = root / rel
+        if not path.exists():
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        for command in _walk_commands(payload):
+            if NETWORK_COMMAND_PATTERN.search(command) or DESTRUCTIVE_COMMAND_PATTERN.search(command):
+                risky.append(LineMatch(rel, 1, command))
+
+    if risky:
+        return [
+            Finding(
+                check_id="hooks.commands.risky",
+                severity=Severity.WARNING,
+                title="Hook commands contain network or destructive shell patterns",
+                detail=_format_line_matches(risky),
+                remediation="Keep lifecycle hooks deterministic and local; move network or destructive behavior behind explicit user review.",
+            )
+        ]
+
+    return [
+        Finding(
+            check_id="hooks.commands.local",
+            severity=Severity.OK,
+            title="No risky hook command patterns detected",
+            detail="Configured hook commands avoid common network and destructive shell patterns.",
+        )
+    ]
+
+
 def _iter_text_files(root: Path, ignored_dirs: tuple[str, ...]) -> list[Path]:
     files: list[Path] = []
     ignored = set(ignored_dirs)
@@ -261,6 +432,62 @@ def _iter_text_files(root: Path, ignored_dirs: tuple[str, ...]) -> list[Path]:
             if path.is_file() and path.stat().st_size <= 1_000_000:
                 files.append(path)
     return files
+
+
+def _expand_patterns(root: Path, patterns: tuple[str, ...]) -> list[Path]:
+    paths: list[Path] = []
+    seen: set[Path] = set()
+    for pattern in patterns:
+        for path in root.glob(pattern):
+            if path.is_file() and path not in seen:
+                paths.append(path)
+                seen.add(path)
+    return sorted(paths)
+
+
+def _is_unpinned_third_party_action(reference: str) -> bool:
+    if reference.startswith("./") or reference.startswith("../"):
+        return False
+    if "@" not in reference:
+        return True
+    name, ref = reference.rsplit("@", 1)
+    if name.startswith("actions/") or name.startswith("github/"):
+        return False
+    return not re.fullmatch(r"[a-fA-F0-9]{40}", ref)
+
+
+def _mentions_event(lines: list[str], event: str) -> bool:
+    event_pattern = re.compile(rf"(^|\s|-\s*){re.escape(event)}\s*:")
+    bracket_pattern = re.compile(rf"\[[^\]]*\b{re.escape(event)}\b[^\]]*\]")
+    return any(event_pattern.search(line) or bracket_pattern.search(line) for line in lines)
+
+
+def _has_write_permission(lines: list[str]) -> bool:
+    for line in lines:
+        stripped = line.strip()
+        if stripped == "permissions: write-all" or stripped == "write-all":
+            return True
+        if re.search(r":\s*write\b", stripped):
+            return True
+    return False
+
+
+def _walk_commands(value: object) -> list[str]:
+    commands: list[str] = []
+    if isinstance(value, dict):
+        for key, nested in value.items():
+            if key == "command" and isinstance(nested, str):
+                commands.append(nested)
+            else:
+                commands.extend(_walk_commands(nested))
+    elif isinstance(value, list):
+        for item in value:
+            commands.extend(_walk_commands(item))
+    return commands
+
+
+def _format_line_matches(matches: list[LineMatch]) -> str:
+    return "; ".join(f"{match.path}:{match.line_number}: {match.line}" for match in matches)
 
 
 def detect_git_root(path: Path) -> Path:

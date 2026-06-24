@@ -52,7 +52,10 @@ agent-workbench audit --format sarif -o agent-workbench.sarif .
 
 - `agent-workbench audit [path]`: check for repository guidance, CI, hooks,
   executable validation scripts, parseable JSON config, and common secret
-  patterns. Supports `text`, `json`, `markdown`, and `sarif` output.
+  patterns. It also checks for high-risk automation patterns such as broad
+  GitHub token permissions, write permissions on pull request workflows,
+  unpinned third-party actions, and risky lifecycle hook commands. Supports
+  `text`, `json`, `markdown`, and `sarif` output.
 - `agent-workbench init [path]`: create missing starter files for an
   agent-ready repository.
 - `agent-workbench doctor`: report whether local tools such as `git`, `gh`,
@@ -68,6 +71,10 @@ required_files = ["AGENTS.md", "CLAUDE.md", "LICENSE"]
 json_files = [".codex/hooks.json", ".claude/settings.json"]
 executable_files = ["scripts/validate.sh", ".githooks/pre-commit"]
 ignored_dirs = [".git", ".venv", "__pycache__", "node_modules"]
+workflow_files = [".github/workflows/*.yml", "action.yml"]
+hook_json_files = [".codex/hooks.json", ".claude/settings.json"]
+allowed_unpinned_actions = []
+allowed_broad_permission_workflows = []
 
 [guidance]
 "AGENTS.md" = ["Review guidelines", "Commands"]
@@ -75,6 +82,10 @@ ignored_dirs = [".git", ".venv", "__pycache__", "node_modules"]
 ```
 
 Use `--config path/to/file.toml` when the config is not in the repository root.
+
+Allowlist entries should be rare and documented in review. For example, a
+release workflow may need `contents: write`, but a pull request workflow usually
+should not.
 
 ## Repository workflow
 

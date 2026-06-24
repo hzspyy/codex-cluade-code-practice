@@ -14,6 +14,16 @@ executable_files = [
   "scripts/validate.sh",
   ".githooks/pre-commit"
 ]
+workflow_files = [
+  ".github/workflows/*.yml",
+  ".github/workflows/*.yaml",
+  "action.yml",
+  "action.yaml"
+]
+hook_json_files = [
+  ".codex/hooks.json",
+  ".claude/settings.json"
+]
 ignored_dirs = [
   ".git",
   ".agent-state",
@@ -27,6 +37,13 @@ ignored_dirs = [
   "dist",
   "build"
 ]
+allowed_unpinned_actions = [
+  "hzspyy/codex-cluade-code-practice"
+]
+allowed_broad_permission_workflows = [
+  ".github/workflows/release.yml"
+]
+allowed_write_permission_workflows = []
 
 [guidance]
 "AGENTS.md" = ["Review guidelines", "Commands"]

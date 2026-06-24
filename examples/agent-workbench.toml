@@ -8,7 +8,12 @@ required_files = [
 ]
 json_files = [".codex/hooks.json", ".claude/settings.json"]
 executable_files = ["scripts/validate.sh", ".githooks/pre-commit"]
+workflow_files = [".github/workflows/*.yml", "action.yml"]
+hook_json_files = [".codex/hooks.json", ".claude/settings.json"]
 ignored_dirs = [".git", ".venv", "__pycache__", "node_modules", "dist", "build"]
+allowed_unpinned_actions = []
+allowed_broad_permission_workflows = []
+allowed_write_permission_workflows = []
 
 [guidance]
 "AGENTS.md" = ["Review guidelines", "Commands", "Pull request checklist"]
