@@ -17,11 +17,16 @@ Useful commands:
 agent-workbench doctor
 agent-workbench audit .
 agent-workbench audit --json .
+agent-workbench audit --format markdown -o audit.md .
+agent-workbench audit --format sarif -o agent-workbench.sarif .
 agent-workbench init /path/to/another/repo
 ```
 
 `audit` returns non-zero when blocking errors are found. `--strict` also returns
 non-zero for warnings.
+
+The SARIF output can be uploaded to GitHub code scanning. Keep it focused on
+warnings and errors so public PR feedback remains actionable.
 
 ## Codex
 
@@ -60,3 +65,16 @@ Enable committed git hooks with:
 ```
 
 The pre-commit hook runs `./scripts/validate.sh`.
+
+## Reusable action
+
+This repository includes `action.yml`, so another repository can run:
+
+```yaml
+- uses: hzspyy/codex-cluade-code-practice@main
+  with:
+    format: markdown
+    output: agent-workbench-audit.md
+```
+
+Use `format: sarif` when you want GitHub code scanning integration.

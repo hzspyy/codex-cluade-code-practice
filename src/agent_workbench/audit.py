@@ -9,9 +9,10 @@ import stat
 import subprocess
 from pathlib import Path
 
+from .config import AuditConfig, default_config
 from .models import AuditResult, Finding, Severity
 
-REQUIRED_FILES = {
+REQUIRED_FILE_PURPOSES = {
     "AGENTS.md": "Codex project guidance",
     "CLAUDE.md": "Claude Code project guidance",
     "LICENSE": "open source license",
@@ -25,31 +26,18 @@ SECRET_PATTERNS = (
     re.compile(r"\b(?:OPENAI|ANTHROPIC|GITHUB|CODEX)_API_KEY\s*=\s*['\"]?[A-Za-z0-9_./+=-]{12,}"),
 )
 
-DEFAULT_IGNORE_DIRS = {
-    ".git",
-    ".agent-state",
-    ".codex-log",
-    ".pytest_cache",
-    ".ruff_cache",
-    ".venv",
-    "venv",
-    "__pycache__",
-    "node_modules",
-    "dist",
-    "build",
-}
 
-
-def audit_repository(root: Path) -> AuditResult:
+def audit_repository(root: Path, config: AuditConfig | None = None) -> AuditResult:
     root = root.resolve()
+    config = config or default_config()
     findings: list[Finding] = []
 
     findings.extend(_check_git(root))
-    findings.extend(_check_required_files(root))
-    findings.extend(_check_guidance(root))
-    findings.extend(_check_json_configs(root))
-    findings.extend(_check_scripts(root))
-    findings.extend(_check_secret_patterns(root))
+    findings.extend(_check_required_files(root, config.required_files))
+    findings.extend(_check_guidance(root, config.guidance_terms))
+    findings.extend(_check_json_configs(root, config.json_files))
+    findings.extend(_check_scripts(root, config.executable_files))
+    findings.extend(_check_secret_patterns(root, config.ignored_dirs))
 
     if not any(f.severity == Severity.ERROR for f in findings):
         findings.append(
@@ -86,9 +74,10 @@ def _check_git(root: Path) -> list[Finding]:
     ]
 
 
-def _check_required_files(root: Path) -> list[Finding]:
+def _check_required_files(root: Path, required_files: tuple[str, ...]) -> list[Finding]:
     findings: list[Finding] = []
-    for path, purpose in REQUIRED_FILES.items():
+    for path in required_files:
+        purpose = REQUIRED_FILE_PURPOSES.get(path, "required project file")
         target = root / path
         if target.exists():
             findings.append(
@@ -114,12 +103,8 @@ def _check_required_files(root: Path) -> list[Finding]:
     return findings
 
 
-def _check_guidance(root: Path) -> list[Finding]:
+def _check_guidance(root: Path, guidance_checks: dict[str, tuple[str, ...]]) -> list[Finding]:
     findings: list[Finding] = []
-    guidance_checks = {
-        "AGENTS.md": ("Review guidelines", "Commands"),
-        "CLAUDE.md": ("validate",),
-    }
     for path, required_terms in guidance_checks.items():
         target = root / path
         if not target.exists():
@@ -150,9 +135,9 @@ def _check_guidance(root: Path) -> list[Finding]:
     return findings
 
 
-def _check_json_configs(root: Path) -> list[Finding]:
+def _check_json_configs(root: Path, json_files: tuple[str, ...]) -> list[Finding]:
     findings: list[Finding] = []
-    for path in (".codex/hooks.json", ".claude/settings.json"):
+    for path in json_files:
         target = root / path
         if not target.exists():
             findings.append(
@@ -191,9 +176,9 @@ def _check_json_configs(root: Path) -> list[Finding]:
     return findings
 
 
-def _check_scripts(root: Path) -> list[Finding]:
+def _check_scripts(root: Path, executable_files: tuple[str, ...]) -> list[Finding]:
     findings: list[Finding] = []
-    for path in ("scripts/validate.sh", ".githooks/pre-commit"):
+    for path in executable_files:
         target = root / path
         if not target.exists():
             findings.append(
@@ -232,9 +217,9 @@ def _check_scripts(root: Path) -> list[Finding]:
     return findings
 
 
-def _check_secret_patterns(root: Path) -> list[Finding]:
+def _check_secret_patterns(root: Path, ignored_dirs: tuple[str, ...]) -> list[Finding]:
     matches: list[str] = []
-    for path in _iter_text_files(root):
+    for path in _iter_text_files(root, ignored_dirs):
         rel = path.relative_to(root).as_posix()
         try:
             text = path.read_text(encoding="utf-8")
@@ -266,10 +251,11 @@ def _check_secret_patterns(root: Path) -> list[Finding]:
     ]
 
 
-def _iter_text_files(root: Path) -> list[Path]:
+def _iter_text_files(root: Path, ignored_dirs: tuple[str, ...]) -> list[Path]:
     files: list[Path] = []
+    ignored = set(ignored_dirs)
     for current_root, dirs, filenames in os.walk(root):
-        dirs[:] = [d for d in dirs if d not in DEFAULT_IGNORE_DIRS]
+        dirs[:] = [d for d in dirs if d not in ignored]
         for filename in filenames:
             path = Path(current_root) / filename
             if path.is_file() and path.stat().st_size <= 1_000_000:

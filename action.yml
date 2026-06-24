@@ -1,0 +1,48 @@
+name: Agent Workbench Audit
+description: Audit repository automation for Codex and Claude Code workflows.
+author: Nyxri
+
+inputs:
+  path:
+    description: Repository path to audit.
+    required: false
+    default: "."
+  format:
+    description: Output format: text, json, markdown, or sarif.
+    required: false
+    default: "text"
+  output:
+    description: Optional report output path.
+    required: false
+    default: ""
+  strict:
+    description: Fail on warnings as well as errors.
+    required: false
+    default: "false"
+  config:
+    description: Optional path to agent-workbench.toml.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Install Agent Workbench
+      shell: bash
+      run: python -m pip install "${{ github.action_path }}"
+    - name: Run Agent Workbench
+      shell: bash
+      run: |
+        set -euo pipefail
+        args=(audit --format "${{ inputs.format }}")
+        if [[ "${{ inputs.strict }}" == "true" ]]; then
+          args+=(--strict)
+        fi
+        if [[ "${{ inputs.output }}" != "" ]]; then
+          args+=(--output "${{ inputs.output }}")
+        fi
+        if [[ "${{ inputs.config }}" != "" ]]; then
+          args+=(--config "${{ inputs.config }}")
+        fi
+        args+=("${{ inputs.path }}")
+        agent-workbench "${args[@]}"

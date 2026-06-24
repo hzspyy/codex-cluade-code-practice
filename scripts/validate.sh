@@ -21,6 +21,8 @@ require_file() {
 require_file AGENTS.md
 require_file CLAUDE.md
 require_file README.md
+require_file agent-workbench.toml
+require_file action.yml
 require_file .codex/hooks.json
 require_file .claude/settings.json
 require_file .githooks/pre-commit

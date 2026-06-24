@@ -44,17 +44,37 @@ The CLI supports machine-readable output:
 
 ```bash
 agent-workbench audit --json .
+agent-workbench audit --format markdown -o audit.md .
+agent-workbench audit --format sarif -o agent-workbench.sarif .
 ```
 
 ## Commands
 
 - `agent-workbench audit [path]`: check for repository guidance, CI, hooks,
   executable validation scripts, parseable JSON config, and common secret
-  patterns.
+  patterns. Supports `text`, `json`, `markdown`, and `sarif` output.
 - `agent-workbench init [path]`: create missing starter files for an
   agent-ready repository.
 - `agent-workbench doctor`: report whether local tools such as `git`, `gh`,
   `codex`, and `claude` are available.
+
+## Configuration
+
+Put `agent-workbench.toml` in a repository root to tune the audit policy:
+
+```toml
+[audit]
+required_files = ["AGENTS.md", "CLAUDE.md", "LICENSE"]
+json_files = [".codex/hooks.json", ".claude/settings.json"]
+executable_files = ["scripts/validate.sh", ".githooks/pre-commit"]
+ignored_dirs = [".git", ".venv", "__pycache__", "node_modules"]
+
+[guidance]
+"AGENTS.md" = ["Review guidelines", "Commands"]
+"CLAUDE.md" = ["validate"]
+```
+
+Use `--config path/to/file.toml` when the config is not in the repository root.
 
 ## Repository workflow
 
@@ -66,9 +86,25 @@ git switch -c codex/my-change
 gh pr create --draft --fill
 ```
 
+## GitHub Action
+
+Use this repository as a composite action:
+
+```yaml
+- uses: actions/checkout@v5
+- uses: hzspyy/codex-cluade-code-practice@main
+  with:
+    format: sarif
+    output: agent-workbench.sarif
+```
+
+See `docs/github-action.md` for a complete workflow, including SARIF upload to
+GitHub code scanning.
+
 ## What is included
 
 - `src/agent_workbench/`: the Python CLI package.
+- `action.yml`: reusable composite GitHub Action.
 - `tests/`: unit tests for audit and init behavior.
 - `AGENTS.md` and `CLAUDE.md`: project instructions for Codex and Claude Code.
 - `.codex/hooks.json` and `.claude/settings.json`: local lifecycle hook

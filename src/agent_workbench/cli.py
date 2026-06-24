@@ -6,13 +6,13 @@ import argparse
 import json
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 from . import __version__
 from .audit import audit_repository, detect_git_root
+from .config import load_config
 from .init_repo import init_repository
-from .reporting import audit_to_json, audit_to_text
+from .reporting import render_audit
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -26,7 +26,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     audit = subparsers.add_parser("audit", help="audit a repository")
     audit.add_argument("path", nargs="?", default=".", help="repository path")
-    audit.add_argument("--json", action="store_true", help="emit JSON")
+    audit.add_argument(
+        "--format",
+        choices=("text", "json", "markdown", "sarif"),
+        default="text",
+        help="output format",
+    )
+    audit.add_argument("--json", action="store_true", help="emit JSON; shorthand for --format json")
+    audit.add_argument("--config", help="path to agent-workbench.toml")
+    audit.add_argument("--output", "-o", help="write the report to a file")
     audit.add_argument(
         "--strict",
         action="store_true",
@@ -50,8 +58,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "audit":
         root = detect_git_root(Path(args.path))
-        result = audit_repository(root)
-        print(audit_to_json(result) if args.json else audit_to_text(result))
+        config = load_config(root, Path(args.config).resolve() if args.config else None)
+        result = audit_repository(root, config)
+        output_format = "json" if args.json else args.format
+        rendered = render_audit(result, output_format)
+        if args.output:
+            Path(args.output).write_text(rendered + "\n", encoding="utf-8")
+        else:
+            print(rendered)
         if result.error_count:
             return 1
         if args.strict and result.warning_count:

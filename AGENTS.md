@@ -27,6 +27,8 @@ scripts reviewable in git.
   basics, Python tests, CLI audit behavior, and agent configuration JSON.
 - `python3 -m pip install -e .` installs the local CLI for development.
 - `agent-workbench audit .` audits this repository.
+- `agent-workbench audit --format sarif -o agent-workbench.sarif .` writes a
+  GitHub code-scanning compatible report.
 - `agent-workbench init /path/to/repo` bootstraps another repository.
 - `agent-workbench doctor` checks local tool availability.
 - `./scripts/install-git-hooks.sh` enables the committed git hooks by setting
@@ -51,6 +53,7 @@ Run `./scripts/validate.sh` before opening or updating a pull request.
 - `.github/codex/prompts/review.md` is the prompt for optional Codex Action
   review workflows or manual `codex exec` review runs.
 - `src/agent_workbench/` contains the Python package.
+- `agent-workbench.toml` configures this repository's audit policy.
 - `tests/` contains unit tests. Update tests when audit behavior changes.
 
 ## Review guidelines
