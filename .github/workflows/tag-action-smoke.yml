@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Run released action tag
-        uses: hzspyy/codex-cluade-code-practice@v0.1.0
+        uses: hzspyy/codex-cluade-code-practice@v0.2.0
         with:
           format: sarif
           output: released-action.sarif
