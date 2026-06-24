@@ -1,5 +1,28 @@
 # Automation Notes
 
+Agent Workbench is both a tool and a reference implementation for keeping
+agentic coding automation visible in git.
+
+## CLI
+
+Install in editable mode while developing:
+
+```bash
+python3 -m pip install -e .
+```
+
+Useful commands:
+
+```bash
+agent-workbench doctor
+agent-workbench audit .
+agent-workbench audit --json .
+agent-workbench init /path/to/another/repo
+```
+
+`audit` returns non-zero when blocking errors are found. `--strict` also returns
+non-zero for warnings.
+
 ## Codex
 
 Codex reads repository guidance from `AGENTS.md`. Keep durable repository rules,

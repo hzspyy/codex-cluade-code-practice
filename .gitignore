@@ -3,6 +3,8 @@
 .env
 .env.*
 !.env.example
+.venv/
 node_modules/
 __pycache__/
+*.egg-info/
 .DS_Store

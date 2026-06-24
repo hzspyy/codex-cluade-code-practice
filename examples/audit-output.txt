@@ -1,0 +1,10 @@
+agent-workbench audit: /path/to/repo
+status: pass
+errors: 0, warnings: 0
+
+OK git.present: Git repository detected
+  The repository can support branch, PR, and review workflows.
+OK file.AGENTS.md [AGENTS.md]: AGENTS.md exists
+  Found Codex project guidance.
+OK secret.patterns: No common secret patterns found
+  Scanned text files for common token shapes.

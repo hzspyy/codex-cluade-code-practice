@@ -4,6 +4,11 @@ set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$ROOT"
 
+PYTHON_BIN="${AGENT_WORKBENCH_PYTHON:-python3}"
+if [[ -x .venv/bin/python && "${AGENT_WORKBENCH_PYTHON:-}" == "" ]]; then
+  PYTHON_BIN=".venv/bin/python"
+fi
+
 fail() {
   printf 'validate: %s\n' "$*" >&2
   exit 1
@@ -24,20 +29,38 @@ require_file .github/codex/prompts/review.md
 
 git diff --check
 
-python3 -m json.tool .codex/hooks.json >/dev/null
-python3 -m json.tool .claude/settings.json >/dev/null
+"$PYTHON_BIN" -m json.tool .codex/hooks.json >/dev/null
+"$PYTHON_BIN" -m json.tool .claude/settings.json >/dev/null
 
 bash -n scripts/validate.sh
 bash -n scripts/install-git-hooks.sh
 bash -n .githooks/pre-commit
+"$PYTHON_BIN" -m compileall -q src tests
 
 while IFS= read -r script; do
   [[ -x "$script" ]] || fail "script is not executable: $script"
 done < <(find scripts .githooks -type f | sort)
 
-if rg -n --hidden --glob '!.git/**' --glob '!AGENTS.md' --glob '!scripts/validate.sh' \
+if rg -n --hidden \
+  --glob '!.git/**' \
+  --glob '!.venv/**' \
+  --glob '!AGENTS.md' \
+  --glob '!scripts/validate.sh' \
+  --glob '!tests/**' \
   'OPENAI_API_KEY=|ANTHROPIC_API_KEY=|gho_[A-Za-z0-9_]+|sk-[A-Za-z0-9_-]{20,}' .; then
   fail "possible secret found"
+fi
+
+PYTHONPATH=src "$PYTHON_BIN" -m agent_workbench audit --strict .
+
+if "$PYTHON_BIN" - <<'PY'
+import importlib.util
+raise SystemExit(0 if importlib.util.find_spec("pytest") else 1)
+PY
+then
+  PYTHONPATH=src "$PYTHON_BIN" -m pytest -q
+else
+  printf 'validate: pytest not installed; skipped unit tests\n' >&2
 fi
 
 mkdir -p .agent-state

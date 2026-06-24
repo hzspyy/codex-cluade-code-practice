@@ -1,8 +1,10 @@
 # AGENTS.md
 
-This repository is a small lab for exploring Codex, Claude Code, and agentic
-software automation. Treat the repo itself as an automation artifact: keep the
-instructions, hooks, prompts, and verification scripts reviewable in git.
+This repository contains Agent Workbench, a small CLI for bootstrapping and
+auditing repositories that use Codex, Claude Code, GitHub pull requests, and
+local hooks as part of an agentic software workflow. Treat the repo itself as
+an automation artifact: keep instructions, hooks, prompts, and verification
+scripts reviewable in git.
 
 ## Working agreements
 
@@ -15,11 +17,18 @@ instructions, hooks, prompts, and verification scripts reviewable in git.
 - When adding an agent workflow, include the command that verifies it.
 - When behavior depends on a hosted product setting, document the setting and
   keep a local fallback that still works in this repository.
+- Keep the CLI zero-runtime-dependency unless a dependency clearly pays for
+  itself.
+- Every audit failure should include actionable remediation.
 
 ## Commands
 
 - `./scripts/validate.sh` checks repository structure, shell scripts, markdown
-  basics, and agent configuration JSON.
+  basics, Python tests, CLI audit behavior, and agent configuration JSON.
+- `python3 -m pip install -e .` installs the local CLI for development.
+- `agent-workbench audit .` audits this repository.
+- `agent-workbench init /path/to/repo` bootstraps another repository.
+- `agent-workbench doctor` checks local tool availability.
 - `./scripts/install-git-hooks.sh` enables the committed git hooks by setting
   `core.hooksPath=.githooks`.
 - `git diff --check` catches whitespace errors before commit.
@@ -41,6 +50,8 @@ Run `./scripts/validate.sh` before opening or updating a pull request.
 - `.github/workflows/validate.yml` runs the same validation in GitHub Actions.
 - `.github/codex/prompts/review.md` is the prompt for optional Codex Action
   review workflows or manual `codex exec` review runs.
+- `src/agent_workbench/` contains the Python package.
+- `tests/` contains unit tests. Update tests when audit behavior changes.
 
 ## Review guidelines
 
