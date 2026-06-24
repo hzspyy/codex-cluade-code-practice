@@ -30,6 +30,12 @@ jobs:
           sarif_file: agent-workbench.sarif
 ```
 
+A copy of this workflow is available at `examples/github-workflow.yml`.
+
+This repository also runs `.github/workflows/action-self-test.yml`, which uses
+the local action with both Markdown and SARIF output on every PR. That self-test
+guards against shipping an action definition that only works in documentation.
+
 For repositories that are not ready to fail on warnings, keep `strict` unset.
 When the automation baseline is stable, enable:
 

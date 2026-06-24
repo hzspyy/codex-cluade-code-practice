@@ -23,7 +23,7 @@ scripts reviewable in git.
 
 ## Commands
 
-- `./scripts/validate.sh` checks repository structure, shell scripts, markdown
+- `bash scripts/validate.sh` checks repository structure, shell scripts, markdown
   basics, Python tests, CLI audit behavior, and agent configuration JSON.
 - `python3 -m pip install -e .` installs the local CLI for development.
 - `agent-workbench audit .` audits this repository.
@@ -34,8 +34,10 @@ scripts reviewable in git.
 - `./scripts/install-git-hooks.sh` enables the committed git hooks by setting
   `core.hooksPath=.githooks`.
 - `git diff --check` catches whitespace errors before commit.
+- `./scripts/check-package.py` verifies packaging metadata and the CLI entry
+  point before release work.
 
-Run `./scripts/validate.sh` before opening or updating a pull request.
+Run `bash scripts/validate.sh` before opening or updating a pull request.
 
 ## Automation surfaces
 
@@ -70,7 +72,7 @@ Run `./scripts/validate.sh` before opening or updating a pull request.
 ## Pull request checklist
 
 - The branch name describes the automation change.
-- `./scripts/validate.sh` passes locally.
+- `bash scripts/validate.sh` passes locally.
 - The PR body explains what changed, why, and how it was checked.
 - If Codex GitHub code review is enabled for the repository, request it with
   `@codex review` or rely on the repository's automatic review setting.

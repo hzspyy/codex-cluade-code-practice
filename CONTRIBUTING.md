@@ -6,7 +6,13 @@ Agent Workbench should stay small, auditable, and useful to real repositories.
 
 ```bash
 python3 -m pip install -e .
-./scripts/validate.sh
+bash scripts/validate.sh
+```
+
+Before cutting a release, run:
+
+```bash
+./scripts/check-package.py
 ```
 
 ## Design rules

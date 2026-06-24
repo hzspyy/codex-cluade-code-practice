@@ -1,0 +1,24 @@
+name: Agent Workbench
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hzspyy/codex-cluade-code-practice@main
+        with:
+          format: sarif
+          output: agent-workbench.sarif
+      - uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: agent-workbench.sarif

@@ -7,7 +7,7 @@ Follow the same repository rules as `AGENTS.md`:
 
 - Inspect git state before editing.
 - Keep changes small and reviewable.
-- Run `./scripts/validate.sh` before opening or updating a pull request.
+- Run `bash scripts/validate.sh` before opening or updating a pull request.
 - Do not commit secrets, tokens, local transcripts, or machine-private state.
 - Keep hooks and automation scripts committed, documented, and easy to audit.
 

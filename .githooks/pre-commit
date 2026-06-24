@@ -4,4 +4,4 @@ set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
-./scripts/validate.sh
+bash scripts/validate.sh

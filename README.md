@@ -29,7 +29,7 @@ python3 -m pip install -e .
 agent-workbench doctor
 agent-workbench audit .
 ./scripts/install-git-hooks.sh
-./scripts/validate.sh
+bash scripts/validate.sh
 ```
 
 Initialize another repository:
@@ -37,7 +37,7 @@ Initialize another repository:
 ```bash
 agent-workbench init /path/to/repo
 cd /path/to/repo
-./scripts/validate.sh
+bash scripts/validate.sh
 ```
 
 The CLI supports machine-readable output:
@@ -82,7 +82,7 @@ For this repository:
 
 ```bash
 git switch -c codex/my-change
-./scripts/validate.sh
+bash scripts/validate.sh
 gh pr create --draft --fill
 ```
 
@@ -101,10 +101,13 @@ Use this repository as a composite action:
 See `docs/github-action.md` for a complete workflow, including SARIF upload to
 GitHub code scanning.
 
+This repository dogfoods the action in `.github/workflows/action-self-test.yml`.
+
 ## What is included
 
 - `src/agent_workbench/`: the Python CLI package.
 - `action.yml`: reusable composite GitHub Action.
+- `examples/`: sample config, workflow, output, and a minimal fixture repo.
 - `tests/`: unit tests for audit and init behavior.
 - `AGENTS.md` and `CLAUDE.md`: project instructions for Codex and Claude Code.
 - `.codex/hooks.json` and `.claude/settings.json`: local lifecycle hook
@@ -128,3 +131,15 @@ To request a review manually from a PR comment:
 ## License
 
 MIT. See `LICENSE`.
+
+## Releasing
+
+Release artifacts are built from version tags:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The release workflow builds a source distribution and wheel, uploads them as
+artifacts, and creates a GitHub release for tag pushes.

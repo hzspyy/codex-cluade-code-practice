@@ -8,7 +8,7 @@ inputs:
     required: false
     default: "."
   format:
-    description: Output format: text, json, markdown, or sarif.
+    description: "Output format: text, json, markdown, or sarif."
     required: false
     default: "text"
   output:

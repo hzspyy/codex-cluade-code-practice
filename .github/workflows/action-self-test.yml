@@ -1,0 +1,41 @@
+name: Action self-test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "codex/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run local composite action
+        uses: ./
+        with:
+          format: markdown
+          output: agent-workbench-audit.md
+      - name: Run local composite action with SARIF
+        uses: ./
+        with:
+          format: sarif
+          output: agent-workbench.sarif
+      - name: Validate SARIF JSON
+        run: python -m json.tool agent-workbench.sarif >/dev/null
+      - name: Upload SARIF artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: agent-workbench-sarif
+          path: agent-workbench.sarif
+      - name: Upload Markdown artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: agent-workbench-markdown
+          path: agent-workbench-audit.md

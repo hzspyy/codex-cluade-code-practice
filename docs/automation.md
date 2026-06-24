@@ -64,7 +64,7 @@ Enable committed git hooks with:
 ./scripts/install-git-hooks.sh
 ```
 
-The pre-commit hook runs `./scripts/validate.sh`.
+The pre-commit hook runs `bash scripts/validate.sh`.
 
 ## Reusable action
 
