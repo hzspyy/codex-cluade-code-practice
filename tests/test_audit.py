@@ -77,6 +77,55 @@ ignored_dirs = [".git"]
     assert any(finding.severity == Severity.WARNING for finding in audit.findings)
 
 
+def test_config_can_override_check_severity(tmp_path: Path) -> None:
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    init_repository(tmp_path)
+    (tmp_path / "AGENTS.md").write_text("# AGENTS.md\n", encoding="utf-8")
+    (tmp_path / "agent-workbench.toml").write_text(
+        """
+[audit]
+required_files = ["AGENTS.md"]
+json_files = []
+executable_files = []
+ignored_dirs = [".git"]
+workflow_files = []
+hook_json_files = []
+
+[audit.severity_overrides]
+"guidance.AGENTS.md.Commands" = "error"
+
+[guidance]
+"AGENTS.md" = ["Commands"]
+""",
+        encoding="utf-8",
+    )
+
+    audit = audit_repository(tmp_path, load_config(tmp_path))
+
+    assert any(
+        finding.check_id == "guidance.AGENTS.md.Commands" and finding.severity == Severity.ERROR
+        for finding in audit.findings
+    )
+    assert audit.error_count == 1
+
+
+def test_invalid_severity_override_is_rejected(tmp_path: Path) -> None:
+    (tmp_path / "agent-workbench.toml").write_text(
+        """
+[audit.severity_overrides]
+"workflow.actions.unpinned" = "critical"
+""",
+        encoding="utf-8",
+    )
+
+    try:
+        load_config(tmp_path)
+    except ValueError as exc:
+        assert "severity override values" in str(exc)
+    else:
+        raise AssertionError("invalid severity override should fail")
+
+
 def test_workflow_risks_are_reported(tmp_path: Path) -> None:
     subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
     init_repository(tmp_path)

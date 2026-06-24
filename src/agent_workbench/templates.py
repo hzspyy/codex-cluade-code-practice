@@ -21,6 +21,8 @@ allowed_broad_permission_workflows = []
 allowed_write_permission_workflows = []
 allowed_ungated_privileged_workflows = []
 
+[audit.severity_overrides]
+
 [guidance]
 "AGENTS.md" = ["Review guidelines", "Commands"]
 "CLAUDE.md" = ["validate"]
